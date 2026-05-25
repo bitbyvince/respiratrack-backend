@@ -382,4 +382,31 @@ router.delete("/:recordId", async (req, res) => {
   }
 });
 
+router.get("/patient/:patientId/missed-doses", async (req, res) => {
+  try {
+    const { patientId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(patientId)) {
+      return res.status(400).json({ success: false, message: "Invalid patient ID" });
+    }
+
+    const records = await TreatmentCalendar.find({
+      patient_id: patientId,
+      dose_taken: false,
+    }).sort({ dose_date: -1 });
+
+    res.json({
+      success: true,
+      count: records.length,
+      data: records.map((r) => ({
+        date: r.dose_date,
+        recorded_by: r.recorded_by ?? null,
+        recorded_at: r.recorded_at ?? null,
+      })),
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Server error", error: err.message });
+  }
+});
+
 export default router;
