@@ -1,7 +1,7 @@
-const service = require("./symptom-log.service");
-const { success, error } = require("../../utils/apiResponse");
+import * as service from "./symptom-log.service.js";
+import { success, error } from "../../utils/apiResponse.js";
 
-exports.logSymptom = async (req, res) => {
+export const logSymptom = async (req, res) => {
   try {
     const log = await service.logSymptom(req.body, req.user);
     return res.status(201).json(success("Symptom log recorded.", { log }));
@@ -10,7 +10,7 @@ exports.logSymptom = async (req, res) => {
   }
 };
 
-exports.getPatientLogs = async (req, res) => {
+export const getPatientLogs = async (req, res) => {
   try {
     const { patientId } = req.params;
     const { page = 1, limit = 20, from, to, severity } = req.query;
@@ -27,10 +27,9 @@ exports.getPatientLogs = async (req, res) => {
   }
 };
 
-exports.getLatestLog = async (req, res) => {
+export const getLatestLog = async (req, res) => {
   try {
-    const { patientId } = req.params;
-    const log = await service.getLatestLog(patientId);
+    const log = await service.getLatestLog(req.params.patientId);
     return res
       .status(200)
       .json(success("Latest symptom log retrieved.", { log }));
@@ -39,11 +38,12 @@ exports.getLatestLog = async (req, res) => {
   }
 };
 
-exports.getBarangayLogs = async (req, res) => {
+export const getBarangayLogs = async (req, res) => {
   try {
-    const { barangayId } = req.params;
-    const { date, reviewed } = req.query;
-    const logs = await service.getBarangayLogs(barangayId, { date, reviewed });
+    const logs = await service.getBarangayLogs(
+      req.params.barangayId,
+      req.query,
+    );
     return res
       .status(200)
       .json(success("Barangay symptom logs retrieved.", { logs }));
@@ -52,10 +52,9 @@ exports.getBarangayLogs = async (req, res) => {
   }
 };
 
-exports.reviewLog = async (req, res) => {
+export const reviewLog = async (req, res) => {
   try {
-    const { logId } = req.params;
-    const log = await service.reviewLog(logId, req.user);
+    const log = await service.reviewLog(req.params.logId, req.user);
     return res
       .status(200)
       .json(success("Symptom log marked as reviewed.", { log }));

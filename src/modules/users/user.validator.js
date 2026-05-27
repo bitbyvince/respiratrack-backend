@@ -1,7 +1,5 @@
-const Joi = require("joi");
-const ROLES = require("../../constants/roles");
-
-// ── REUSABLE FIELD SCHEMAS ───────────────────────────────
+import Joi from "joi";
+import ROLES from "../../constants/roles.js";
 
 const nameField = (label) =>
   Joi.string()
@@ -51,7 +49,6 @@ const passwordField = Joi.string()
     "any.required": "Password is required.",
   });
 
-// ── TB CASE NUMBER FORMAT: PHNT-137-071-S26-XXXX ─────────
 const tbCaseNumberField = Joi.string()
   .pattern(/^PHNT-\d{3}-\d{3}-[A-Z]\d{2}-\d{4}$/)
   .required()
@@ -61,10 +58,7 @@ const tbCaseNumberField = Joi.string()
     "any.required": "TB case number is required.",
   });
 
-// ================================================================
-// CREATE STAFF (super_admin or barangay_admin creates nurse/admin)
-// ================================================================
-const createStaffSchema = Joi.object({
+export const createStaffSchema = Joi.object({
   role: Joi.string()
     .valid(ROLES.BARANGAY_ADMIN, ROLES.NURSE)
     .required()
@@ -77,20 +71,15 @@ const createStaffSchema = Joi.object({
   email: emailField,
   password: passwordField,
   phone_number: phoneField(false),
-
-  // Only required when super_admin creates a barangay_admin or nurse
   barangay_id: Joi.string().when("role", {
     is: Joi.valid(ROLES.BARANGAY_ADMIN, ROLES.NURSE),
-    then: Joi.string().optional(), // service enforces this for super_admin
+    then: Joi.string().optional(),
     otherwise: Joi.forbidden(),
   }),
   health_center_id: Joi.string().optional().allow(null, ""),
 });
 
-// ================================================================
-// UPDATE STAFF
-// ================================================================
-const updateStaffSchema = Joi.object({
+export const updateStaffSchema = Joi.object({
   first_name: Joi.string().min(2).max(64).optional(),
   last_name: Joi.string().min(2).max(64).optional(),
   email: Joi.string().email().optional().messages({
@@ -103,14 +92,10 @@ const updateStaffSchema = Joi.object({
     "object.min": "At least one field must be provided for update.",
   });
 
-// ================================================================
-// CREATE PATIENT MOBILE ACCOUNT
-// Called by nurse/barangay_admin after registering a patient
-// ================================================================
-const createPatientAccountSchema = Joi.object({
-  patient_id: Joi.string().required().messages({
-    "any.required": "Patient ID is required.",
-  }),
+export const createPatientAccountSchema = Joi.object({
+  patient_id: Joi.string()
+    .required()
+    .messages({ "any.required": "Patient ID is required." }),
   tb_case_number: tbCaseNumberField,
   first_name: nameField("First name"),
   last_name: nameField("Last name"),
@@ -125,16 +110,11 @@ const createPatientAccountSchema = Joi.object({
   }),
 });
 
-// ================================================================
-// UPDATE PATIENT ACCOUNT
-// Nurse/admin can update contact info or reset PIN
-// ================================================================
-const updatePatientAccountSchema = Joi.object({
+export const updatePatientAccountSchema = Joi.object({
   phone_number: phoneField(false),
   email: Joi.string().email().optional().allow(null, "").messages({
     "string.email": "Please provide a valid email address.",
   }),
-  // PIN reset — nurse/admin sets a new PIN for the patient
   new_pin: Joi.string()
     .length(4)
     .pattern(/^\d{4}$/)
@@ -157,10 +137,7 @@ const updatePatientAccountSchema = Joi.object({
     "object.min": "At least one field must be provided for update.",
   });
 
-// ================================================================
-// LIST USERS QUERY PARAMS
-// ================================================================
-const listUsersSchema = Joi.object({
+export const listUsersSchema = Joi.object({
   page: Joi.number().integer().min(1).optional().default(1),
   limit: Joi.number().integer().min(1).max(100).optional().default(20),
   role: Joi.string()
@@ -169,11 +146,3 @@ const listUsersSchema = Joi.object({
   barangay_id: Joi.string().optional(),
   is_active: Joi.boolean().optional(),
 });
-
-module.exports = {
-  createStaffSchema,
-  updateStaffSchema,
-  createPatientAccountSchema,
-  updatePatientAccountSchema,
-  listUsersSchema,
-};

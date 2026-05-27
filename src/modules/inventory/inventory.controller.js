@@ -73,7 +73,7 @@ async function getLowStock(req, res) {
 
     const items = await inventoryService.getLowStockItems(
       barangayId,
-      includeOk
+      includeOk,
     );
 
     return sendSuccess(res, 200, "Low stock items fetched", items);
@@ -103,7 +103,7 @@ async function getStockoutPredictions(req, res) {
 
     const predictions = await inventoryService.getStockoutPredictions(
       barangayId,
-      daysThreshold
+      daysThreshold,
     );
 
     return sendSuccess(res, 200, "Stockout predictions fetched", predictions);
@@ -121,7 +121,7 @@ async function getStockoutPredictions(req, res) {
 async function getInventoryItem(req, res) {
   try {
     const item = await inventoryService.getInventoryById(
-      req.params.inventoryId
+      req.params.inventoryId,
     );
 
     // Non-super-admins may only view their own barangay's records
@@ -148,7 +148,7 @@ async function getInventoryItem(req, res) {
 async function adjustStock(req, res) {
   try {
     const item = await inventoryService.getInventoryById(
-      req.params.inventoryId
+      req.params.inventoryId,
     );
 
     const { role, barangay_id: userBarangay, user_id } = req.user;
@@ -161,29 +161,13 @@ async function adjustStock(req, res) {
       req.body.adjustment,
       req.body.reason,
       req.body.notes,
-      user_id
+      user_id,
     );
 
     return sendSuccess(res, 200, "Stock adjusted", result);
   } catch (err) {
     const status = err.message === "Inventory record not found" ? 404 : 400;
     return sendError(res, status, err.message);
-  }
-}
-
-/**
- * POST /inventory/recompute
- * Triggers a full stock status recompute across all inventory records.
- * Normally fired by stockoutPrediction.job.js — exposed for admin use.
- *
- * Role: super_admin only
- */
-async function recomputeAll(req, res) {
-  try {
-    const result = await inventoryService.recomputeAllStockStatuses();
-    return sendSuccess(res, 200, "Stock statuses recomputed", result);
-  } catch (err) {
-    return sendError(res, 500, err.message);
   }
 }
 
@@ -194,5 +178,4 @@ module.exports = {
   getStockoutPredictions,
   getInventoryItem,
   adjustStock,
-  recomputeAll,
 };

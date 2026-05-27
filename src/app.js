@@ -7,22 +7,21 @@ import morgan from "morgan";
 import { connectDB } from "./config/db.js";
 import { initFirebase } from "./config/firebase.js";
 
-import authRoutes from "./routes/auth.routes.js";
-import patientRoutes from "./routes/patients.routes.js";
-import userRoutes from "./routes/users.routes.js";
-import barangayRoutes from "./routes/barangays.routes.js";
-import complianceRoutes from "./routes/compliance.routes.js";
-import medicationRoutes from "./routes/medication.routes.js";
-import symptomRoutes from "./routes/symptoms.routes.js";
-import appointmentRoutes from "./routes/appointments.routes.js";
-import sputumRoutes from "./routes/sputum.routes.js";
-import inventoryRoutes from "./routes/inventory.routes.js";
-import escalationRoutes from "./routes/escalation.routes.js";
-import alertRoutes from "./routes/alerts.routes.js";
-import heatmapRoutes from "./routes/heatmap.routes.js";
-import reportRoutes from "./routes/reports.routes.js";
-import notificationRoutes from "./routes/notifications.routes.js";
-import otpRoutes from "./routes/otp.routes.js";
+import authRoutes from "./modules/auth/auth.routes.js";
+import patientRoutes from "./modules/patients/patient.routes.js";
+import userRoutes from "./modules/users/user.routes.js";
+import barangayRoutes from "./modules/barangays/barangay.routes.js";
+import complianceRoutes from "./modules/compliance/compliance.routes.js";
+import medicationRoutes from "./modules/medication-logs/medication-log.routes.js";
+import symptomRoutes from "./modules/symptom-logs/symptom-log.routes.js";
+import appointmentRoutes from "./modules/appointments/appointment.routes.js";
+import sputumRoutes from "./modules/sputum-tests/sputum-test.routes.js";
+import inventoryRoutes from "./modules/inventory/inventory.routes.js";
+import escalationRoutes from "./modules/escalations/escalation.routes.js";
+import alertRoutes from "./modules/alerts/alert.routes.js";
+import heatmapRoutes from "./modules/heatmap/heatmap.routes.js";
+import reportRoutes from "./modules/reports/report.routes.js";
+import notificationRoutes from "./modules/notifications/notification.routes.js";
 
 import { errorHandler } from "./middleware/error.middleware.js";
 
@@ -54,7 +53,6 @@ app.use("/api/alerts", alertRoutes);
 app.use("/api/heatmap", heatmapRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/notifications", notificationRoutes);
-app.use("/api/otp", otpRoutes);
 
 // ── Global error handler (must be last) ───────────────────
 app.use(errorHandler);

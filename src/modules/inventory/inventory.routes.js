@@ -28,7 +28,7 @@ router.get(
   authenticate,
   authorizeRoles(ALL_STAFF),
   validate(getInventorySchema, "query"),
-  controller.listInventory
+  controller.listInventory,
 );
 
 /**
@@ -39,7 +39,7 @@ router.get(
   "/grouped",
   authenticate,
   authorizeRoles(ADMIN_AND_ABOVE),
-  controller.getInventoryGrouped
+  controller.getInventoryGrouped,
 );
 
 /**
@@ -51,7 +51,7 @@ router.get(
   authenticate,
   authorizeRoles(ALL_STAFF),
   validate(getLowStockSchema, "query"),
-  controller.getLowStock
+  controller.getLowStock,
 );
 
 /**
@@ -63,19 +63,7 @@ router.get(
   authenticate,
   authorizeRoles(ALL_STAFF),
   validate(getStockoutPredictionSchema, "query"),
-  controller.getStockoutPredictions
-);
-
-/**
- * POST /inventory/recompute
- * Admin-triggered full stock status recompute.
- * Normally fired by stockoutPrediction.job.js.
- */
-router.post(
-  "/recompute",
-  authenticate,
-  authorizeRoles(SUPER_ADMIN_ONLY),
-  controller.recomputeAll
+  controller.getStockoutPredictions,
 );
 
 /**
@@ -86,7 +74,7 @@ router.get(
   "/:inventoryId",
   authenticate,
   authorizeRoles(ALL_STAFF),
-  controller.getInventoryItem
+  controller.getInventoryItem,
 );
 
 /**
@@ -98,7 +86,7 @@ router.patch(
   authenticate,
   authorizeRoles(ADMIN_AND_ABOVE),
   validate(adjustStockSchema),
-  controller.adjustStock
+  controller.adjustStock,
 );
 
 module.exports = router;

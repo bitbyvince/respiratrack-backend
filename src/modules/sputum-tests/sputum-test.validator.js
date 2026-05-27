@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createSputumTestSchema = Joi.object({
+export const createSputumTestSchema = Joi.object({
   patient_id: Joi.string().required(),
   month: Joi.number().integer().valid(2, 5, 6).required(),
   due_date: Joi.date().iso().required(),
@@ -8,7 +8,7 @@ const createSputumTestSchema = Joi.object({
   notes: Joi.string().allow("").optional(),
 });
 
-const enterResultSchema = Joi.object({
+export const enterResultSchema = Joi.object({
   result: Joi.string()
     .valid("Negative", "Positive", "Pending", "Not Done")
     .required(),
@@ -16,7 +16,7 @@ const enterResultSchema = Joi.object({
   notes: Joi.string().allow("").optional(),
 });
 
-const updateSputumTestSchema = Joi.object({
+export const updateSputumTestSchema = Joi.object({
   due_date: Joi.date().iso().optional(),
   date_collected: Joi.date().iso().optional().allow(null),
   result: Joi.string()
@@ -25,7 +25,7 @@ const updateSputumTestSchema = Joi.object({
   notes: Joi.string().allow("").optional(),
 });
 
-const listSputumTestsSchema = Joi.object({
+export const listSputumTestsSchema = Joi.object({
   patient_id: Joi.string().optional(),
   barangay_id: Joi.string().optional(),
   result: Joi.string()
@@ -39,15 +39,7 @@ const listSputumTestsSchema = Joi.object({
   limit: Joi.number().integer().min(1).max(100).default(20),
 });
 
-const getUpcomingSchema = Joi.object({
+export const getUpcomingSchema = Joi.object({
   barangay_id: Joi.string().optional(),
   days_ahead: Joi.number().integer().min(1).max(30).default(7),
 });
-
-module.exports = {
-  createSputumTestSchema,
-  enterResultSchema,
-  updateSputumTestSchema,
-  listSputumTestsSchema,
-  getUpcomingSchema,
-};

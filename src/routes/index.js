@@ -1,8 +1,9 @@
-const appointmentRoutes = require("../modules/appointments/appointment.routes");
-app.use("/api/appointments", appointmentRoutes);
+import appointmentRoutes from "../modules/appointments/appointment.routes.js";
+import symptomLogRoutes from "../modules/symptom-logs/symptom-log.routes.js";
+import alertRoutes from "../modules/alerts/alert.routes.js";
 
-const symptomLogRoutes = require("../modules/symptom-logs/symptom-log.routes");
-app.use("/api/symptom-logs", symptomLogRoutes);
-
-const alertRoutes = require("../modules/alerts/alert.routes");
-app.use("/api/alerts", alertRoutes);
+export default (app) => {
+  app.use("/api/appointments", appointmentRoutes);
+  app.use("/api/symptom-logs", symptomLogRoutes);
+  app.use("/api/alerts", alertRoutes);
+};

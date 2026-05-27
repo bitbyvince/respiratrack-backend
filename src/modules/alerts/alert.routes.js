@@ -1,15 +1,16 @@
-const express = require("express");
+import express from "express";
+import * as controller from "./alert.controller.js";
+import { authenticate } from "../../middleware/auth.middleware.js";
+import { authorizeRoles } from "../../middleware/role.middleware.js";
+import { validate } from "../../middleware/validate.middleware.js";
+import { createAlertSchema, resolveAlertSchema } from "./alert.validator.js";
+
 const router = express.Router();
-const controller = require("./alert.controller");
-const { authenticate } = require("../../middleware/auth.middleware");
-const { authorize } = require("../../middleware/role.middleware");
-const { validate } = require("../../middleware/validate.middleware");
-const { createAlertSchema, resolveAlertSchema } = require("./alert.validator");
 
 router.post(
   "/",
   authenticate,
-  authorize("nurse", "barangay_admin", "super_admin"),
+  authorizeRoles("nurse", "barangay_admin", "super_admin"),
   validate(createAlertSchema),
   controller.createAlert,
 );
@@ -17,35 +18,35 @@ router.post(
 router.get(
   "/",
   authenticate,
-  authorize("nurse", "barangay_admin", "super_admin"),
+  authorizeRoles("nurse", "barangay_admin", "super_admin"),
   controller.getAlerts,
 );
 
 router.get(
   "/:alertId",
   authenticate,
-  authorize("nurse", "barangay_admin", "super_admin"),
+  authorizeRoles("nurse", "barangay_admin", "super_admin"),
   controller.getAlert,
 );
 
 router.get(
   "/barangay/:barangayId",
   authenticate,
-  authorize("nurse", "barangay_admin", "super_admin"),
+  authorizeRoles("nurse", "barangay_admin", "super_admin"),
   controller.getBarangayAlerts,
 );
 
 router.get(
   "/patient/:patientId",
   authenticate,
-  authorize("nurse", "barangay_admin", "super_admin"),
+  authorizeRoles("nurse", "barangay_admin", "super_admin"),
   controller.getPatientAlerts,
 );
 
 router.patch(
   "/:alertId/resolve",
   authenticate,
-  authorize("nurse", "barangay_admin", "super_admin"),
+  authorizeRoles("nurse", "barangay_admin", "super_admin"),
   validate(resolveAlertSchema),
   controller.resolveAlert,
 );
@@ -53,8 +54,8 @@ router.patch(
 router.patch(
   "/:alertId/acknowledge",
   authenticate,
-  authorize("nurse", "barangay_admin", "super_admin"),
+  authorizeRoles("nurse", "barangay_admin", "super_admin"),
   controller.acknowledgeAlert,
 );
 
-module.exports = router;
+export default router;

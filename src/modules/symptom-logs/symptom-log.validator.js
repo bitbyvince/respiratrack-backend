@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const VALID_SYMPTOMS = [
   "Nausea",
@@ -22,7 +22,7 @@ const symptomEntrySchema = Joi.object({
   }),
 });
 
-exports.logSymptomSchema = Joi.object({
+export const logSymptomSchema = Joi.object({
   patient_id: Joi.string().required(),
   symptoms: Joi.array().items(symptomEntrySchema).min(1).required().messages({
     "array.min": "At least one symptom must be provided.",
@@ -30,6 +30,6 @@ exports.logSymptomSchema = Joi.object({
   free_text_notes: Joi.string().allow("").optional(),
 });
 
-exports.reviewSymptomSchema = Joi.object({
+export const reviewSymptomSchema = Joi.object({
   notes: Joi.string().allow("").optional(),
 });

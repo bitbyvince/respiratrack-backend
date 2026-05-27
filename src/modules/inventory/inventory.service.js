@@ -42,9 +42,7 @@ function deriveStockStatus(remainingStock, activePatientsOnDrug) {
  */
 function estimateStockoutDate(inventoryDoc, avgDailyRate) {
   const rate =
-    avgDailyRate > 0
-      ? avgDailyRate
-      : inventoryDoc.active_patients_on_this_drug;
+    avgDailyRate > 0 ? avgDailyRate : inventoryDoc.active_patients_on_this_drug;
 
   if (!rate || rate <= 0) return null;
 
@@ -73,7 +71,7 @@ async function syncStockAlert(inventoryDoc, resolvedByUserId = null) {
         status: "Active",
         message: new RegExp(
           `${inventoryDoc.drug_name} ${inventoryDoc.strength}`,
-          "i"
+          "i",
         ),
       },
       {
@@ -82,7 +80,7 @@ async function syncStockAlert(inventoryDoc, resolvedByUserId = null) {
           resolved_at: new Date(),
           resolved_by: resolvedByUserId,
         },
-      }
+      },
     );
     return;
   }
@@ -106,7 +104,7 @@ async function syncStockAlert(inventoryDoc, resolvedByUserId = null) {
       status: "Active",
       message: new RegExp(
         `${inventoryDoc.drug_name} ${inventoryDoc.strength}`,
-        "i"
+        "i",
       ),
     },
     {
@@ -127,7 +125,7 @@ async function syncStockAlert(inventoryDoc, resolvedByUserId = null) {
         resolved_by: null,
       },
     },
-    { upsert: true }
+    { upsert: true },
   );
 }
 
@@ -201,7 +199,9 @@ async function getLowStockItems(barangayId, includeOk = false) {
   const filter = {};
   if (barangayId) filter.barangay_id = barangayId;
   if (!includeOk) {
-    filter.stock_status = { $in: [STOCK_STATUS.LOW, STOCK_STATUS.CRITICAL, STOCK_STATUS.STOCKOUT] };
+    filter.stock_status = {
+      $in: [STOCK_STATUS.LOW, STOCK_STATUS.CRITICAL, STOCK_STATUS.STOCKOUT],
+    };
   }
 
   const items = await Inventory.find(filter).sort({ stock_status: -1 });
@@ -222,7 +222,7 @@ async function recomputeStockStatus(inventoryId, resolvedByUserId = null) {
 
   const newStatus = deriveStockStatus(
     item.remaining_stock,
-    item.active_patients_on_this_drug
+    item.active_patients_on_this_drug,
   );
 
   item.stock_status = newStatus;
@@ -250,7 +250,7 @@ async function adjustStock(
   adjustment,
   reason,
   notes = "",
-  adjustedByUserId
+  adjustedByUserId,
 ) {
   const item = await Inventory.findOne({ inventory_id: inventoryId });
   if (!item) throw new Error("Inventory record not found");
@@ -258,7 +258,7 @@ async function adjustStock(
   const newRemaining = item.remaining_stock + adjustment;
   if (newRemaining < 0) {
     throw new Error(
-      `Adjustment would result in negative stock (current: ${item.remaining_stock}, adjustment: ${adjustment})`
+      `Adjustment would result in negative stock (current: ${item.remaining_stock}, adjustment: ${adjustment})`,
     );
   }
 
@@ -335,31 +335,17 @@ async function getStockoutPredictions(barangayId, daysThreshold = 30) {
         estimated_stockout_date: stockoutDate,
         days_until_stockout: daysUntilStockout,
       };
-    })
+    }),
   );
 
   // Filter to only items within the threshold and sort soonest first
   return predictions
     .filter(
-      (p) => p.days_until_stockout !== null && p.days_until_stockout <= daysThreshold
+      (p) =>
+        p.days_until_stockout !== null &&
+        p.days_until_stockout <= daysThreshold,
     )
     .sort((a, b) => a.days_until_stockout - b.days_until_stockout);
-}
-
-/**
- * Recalculates stock status for ALL inventory records.
- * Called by the stockoutPrediction.job.js cron.
- */
-async function recomputeAllStockStatuses() {
-  const items = await Inventory.find({});
-  const results = await Promise.allSettled(
-    items.map((item) => recomputeStockStatus(item.inventory_id))
-  );
-
-  const succeeded = results.filter((r) => r.status === "fulfilled").length;
-  const failed = results.filter((r) => r.status === "rejected").length;
-
-  return { total: items.length, succeeded, failed };
 }
 
 module.exports = {
@@ -370,7 +356,6 @@ module.exports = {
   recomputeStockStatus,
   adjustStock,
   getStockoutPredictions,
-  recomputeAllStockStatuses,
-  deriveStockStatus,       // exported for use in dispensing.service.js
-  syncStockAlert,          // exported for use in dispensing.service.js
+  deriveStockStatus, // exported for use in dispensing.service.js
+  syncStockAlert, // exported for use in dispensing.service.js
 };

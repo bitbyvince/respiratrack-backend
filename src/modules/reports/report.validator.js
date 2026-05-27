@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const getPatientReportSchema = Joi.object({
+export const getPatientReportSchema = Joi.object({
   patient_id: Joi.string().required(),
   include_medication_logs: Joi.boolean().default(true),
   include_symptom_logs: Joi.boolean().default(true),
@@ -12,20 +12,20 @@ const getPatientReportSchema = Joi.object({
   format: Joi.string().valid("json", "pdf").default("json"),
 });
 
-const getBarangayReportSchema = Joi.object({
+export const getBarangayReportSchema = Joi.object({
   barangay_id: Joi.string().required(),
   from: Joi.date().iso().optional(),
   to: Joi.date().iso().optional(),
   format: Joi.string().valid("json", "pdf").default("json"),
 });
 
-const getCityReportSchema = Joi.object({
+export const getCityReportSchema = Joi.object({
   from: Joi.date().iso().optional(),
   to: Joi.date().iso().optional(),
   format: Joi.string().valid("json", "pdf").default("json"),
 });
 
-const getComplianceTrendSchema = Joi.object({
+export const getComplianceTrendSchema = Joi.object({
   barangay_id: Joi.string().optional(),
   period: Joi.string().valid("daily", "monthly", "all_time").default("monthly"),
   from: Joi.date().iso().optional(),
@@ -33,12 +33,12 @@ const getComplianceTrendSchema = Joi.object({
   limit: Joi.number().integer().min(1).max(365).default(30),
 });
 
-const getInventoryReportSchema = Joi.object({
+export const getInventoryReportSchema = Joi.object({
   barangay_id: Joi.string().optional(),
   format: Joi.string().valid("json", "pdf").default("json"),
 });
 
-const getTreatmentOutcomeSchema = Joi.object({
+export const getTreatmentOutcomeSchema = Joi.object({
   barangay_id: Joi.string().optional(),
   year: Joi.number()
     .integer()
@@ -47,12 +47,3 @@ const getTreatmentOutcomeSchema = Joi.object({
     .optional(),
   format: Joi.string().valid("json", "pdf").default("json"),
 });
-
-module.exports = {
-  getPatientReportSchema,
-  getBarangayReportSchema,
-  getCityReportSchema,
-  getComplianceTrendSchema,
-  getInventoryReportSchema,
-  getTreatmentOutcomeSchema,
-};

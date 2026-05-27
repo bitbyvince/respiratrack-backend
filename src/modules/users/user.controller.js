@@ -1,63 +1,65 @@
-const userService = require("./user.service");
-const { sendSuccess, sendError } = require("../../utils/apiResponse");
+import * as userService from "./user.service.js";
+import { sendSuccess, sendError } from "../../utils/apiResponse.js";
 
-// ================================================================
-// STAFF
-// ================================================================
-
-const listStaff = async (req, res) => {
+export const listStaff = async (req, res) => {
   try {
     const filters = {
       ...req.query,
-      // barangay_admin can only see staff in their own barangay
       ...(req.user.role === "barangay_admin" && {
         barangay_id: req.user.barangay_id,
       }),
     };
-    const result = await userService.listStaff(filters);
-    return sendSuccess(res, 200, "Staff list retrieved.", result);
+    return sendSuccess(
+      res,
+      200,
+      "Staff list retrieved.",
+      await userService.listStaff(filters),
+    );
   } catch (err) {
     return sendError(res, err.statusCode || 500, err.message);
   }
 };
 
-const getStaff = async (req, res) => {
+export const getStaff = async (req, res) => {
   try {
-    const user = await userService.getStaffById(req.params.user_id, req.user);
-    return sendSuccess(res, 200, "Staff retrieved.", user);
+    return sendSuccess(
+      res,
+      200,
+      "Staff retrieved.",
+      await userService.getStaffById(req.params.user_id, req.user),
+    );
   } catch (err) {
     return sendError(res, err.statusCode || 404, err.message);
   }
 };
 
-const createStaff = async (req, res) => {
+export const createStaff = async (req, res) => {
   try {
-    const newUser = await userService.createStaff(req.body, req.user);
     return sendSuccess(
       res,
       201,
       "Staff account created successfully.",
-      newUser,
+      await userService.createStaff(req.body, req.user),
     );
   } catch (err) {
     return sendError(res, err.statusCode || 400, err.message);
   }
 };
 
-const updateStaff = async (req, res) => {
+export const updateStaff = async (req, res) => {
   try {
-    const updated = await userService.updateStaff(
-      req.params.user_id,
-      req.body,
-      req.user,
+    return sendSuccess(
+      res,
+      200,
+      "Staff account updated.",
+      await userService.updateStaff(req.params.user_id, req.body, req.user),
     );
-    return sendSuccess(res, 200, "Staff account updated.", updated);
   } catch (err) {
     return sendError(res, err.statusCode || 400, err.message);
   }
 };
 
-const deactivateStaff = async (req, res) => {
+export const deactivateStaff = async (req, res) => {
   try {
     await userService.setStaffActiveStatus(req.params.user_id, false, req.user);
     return sendSuccess(res, 200, "Staff account deactivated.");
@@ -66,7 +68,7 @@ const deactivateStaff = async (req, res) => {
   }
 };
 
-const reactivateStaff = async (req, res) => {
+export const reactivateStaff = async (req, res) => {
   try {
     await userService.setStaffActiveStatus(req.params.user_id, true, req.user);
     return sendSuccess(res, 200, "Staff account reactivated.");
@@ -75,7 +77,7 @@ const reactivateStaff = async (req, res) => {
   }
 };
 
-const deleteStaff = async (req, res) => {
+export const deleteStaff = async (req, res) => {
   try {
     await userService.deleteStaff(req.params.user_id, req.user);
     return sendSuccess(res, 200, "Staff account permanently deleted.");
@@ -84,11 +86,7 @@ const deleteStaff = async (req, res) => {
   }
 };
 
-// ================================================================
-// PATIENT ACCOUNTS
-// ================================================================
-
-const listPatientAccounts = async (req, res) => {
+export const listPatientAccounts = async (req, res) => {
   try {
     const filters = {
       ...req.query,
@@ -96,53 +94,61 @@ const listPatientAccounts = async (req, res) => {
         barangay_id: req.user.barangay_id,
       }),
     };
-    const result = await userService.listPatientAccounts(filters);
-    return sendSuccess(res, 200, "Patient accounts retrieved.", result);
+    return sendSuccess(
+      res,
+      200,
+      "Patient accounts retrieved.",
+      await userService.listPatientAccounts(filters),
+    );
   } catch (err) {
     return sendError(res, err.statusCode || 500, err.message);
   }
 };
 
-const getPatientAccount = async (req, res) => {
+export const getPatientAccount = async (req, res) => {
   try {
-    const user = await userService.getPatientAccountById(
-      req.params.user_id,
-      req.user,
+    return sendSuccess(
+      res,
+      200,
+      "Patient account retrieved.",
+      await userService.getPatientAccountById(req.params.user_id, req.user),
     );
-    return sendSuccess(res, 200, "Patient account retrieved.", user);
   } catch (err) {
     return sendError(res, err.statusCode || 404, err.message);
   }
 };
 
-const createPatientAccount = async (req, res) => {
+export const createPatientAccount = async (req, res) => {
   try {
-    const newUser = await userService.createPatientAccount(req.body, req.user);
     return sendSuccess(
       res,
       201,
       "Patient mobile account created successfully.",
-      newUser,
+      await userService.createPatientAccount(req.body, req.user),
     );
   } catch (err) {
     return sendError(res, err.statusCode || 400, err.message);
   }
 };
 
-const updatePatientAccount = async (req, res) => {
+export const updatePatientAccount = async (req, res) => {
   try {
-    const updated = await userService.updatePatientAccount(
-      req.params.user_id,
-      req.body,
-      req.user,
+    return sendSuccess(
+      res,
+      200,
+      "Patient account updated.",
+      await userService.updatePatientAccount(
+        req.params.user_id,
+        req.body,
+        req.user,
+      ),
     );
-    return sendSuccess(res, 200, "Patient account updated.", updated);
   } catch (err) {
     return sendError(res, err.statusCode || 400, err.message);
   }
 };
 
-const deactivatePatientAccount = async (req, res) => {
+export const deactivatePatientAccount = async (req, res) => {
   try {
     await userService.setPatientAccountActiveStatus(
       req.params.user_id,
@@ -155,7 +161,7 @@ const deactivatePatientAccount = async (req, res) => {
   }
 };
 
-const reactivatePatientAccount = async (req, res) => {
+export const reactivatePatientAccount = async (req, res) => {
   try {
     await userService.setPatientAccountActiveStatus(
       req.params.user_id,
@@ -168,45 +174,28 @@ const reactivatePatientAccount = async (req, res) => {
   }
 };
 
-// ================================================================
-// SELF-SERVICE
-// ================================================================
-
-const getMyProfile = async (req, res) => {
+export const getMyProfile = async (req, res) => {
   try {
-    const user = await userService.getUserById(req.user.user_id);
-    return sendSuccess(res, 200, "Profile retrieved.", user);
+    return sendSuccess(
+      res,
+      200,
+      "Profile retrieved.",
+      await userService.getUserById(req.user.user_id),
+    );
   } catch (err) {
     return sendError(res, err.statusCode || 404, err.message);
   }
 };
 
-const updateMyProfile = async (req, res) => {
+export const updateMyProfile = async (req, res) => {
   try {
-    const updated = await userService.updateMyProfile(
-      req.user.user_id,
-      req.body,
+    return sendSuccess(
+      res,
+      200,
+      "Profile updated successfully.",
+      await userService.updateMyProfile(req.user.user_id, req.body),
     );
-    return sendSuccess(res, 200, "Profile updated successfully.", updated);
   } catch (err) {
     return sendError(res, err.statusCode || 400, err.message);
   }
-};
-
-module.exports = {
-  listStaff,
-  getStaff,
-  createStaff,
-  updateStaff,
-  deactivateStaff,
-  reactivateStaff,
-  deleteStaff,
-  listPatientAccounts,
-  getPatientAccount,
-  createPatientAccount,
-  updatePatientAccount,
-  deactivatePatientAccount,
-  reactivatePatientAccount,
-  getMyProfile,
-  updateMyProfile,
 };

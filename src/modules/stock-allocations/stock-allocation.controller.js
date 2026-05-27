@@ -1,56 +1,55 @@
-const allocationService = require('./stock-allocation.service');
-const { sendSuccess }   = require('../../utils/apiResponse');
+import * as allocationService from "./stock-allocation.service.js";
+import { sendSuccess } from "../../utils/apiResponse.js";
 
-/**
- * POST /stock-allocations
- * Super admin allocates stock to a barangay health center.
- */
-const createAllocation = async (req, res, next) => {
+export const createAllocation = async (req, res, next) => {
   try {
-    const allocation = await allocationService.allocateStock(req.body, req.user.user_id);
-    return sendSuccess(res, allocation, 'Stock allocated successfully', 201);
+    const allocation = await allocationService.allocateStock(
+      req.body,
+      req.user.user_id,
+    );
+    return sendSuccess(res, 201, "Stock allocated successfully", allocation);
   } catch (err) {
     next(err);
   }
 };
 
-/**
- * GET /stock-allocations
- * List all allocations with optional query filters.
- */
-const getAllocations = async (req, res, next) => {
+export const getAllocations = async (req, res, next) => {
   try {
     const result = await allocationService.getAllocations(req.query);
-    return sendSuccess(res, result, 'Allocations retrieved successfully');
+    return sendSuccess(res, 200, "Allocations retrieved successfully", result);
   } catch (err) {
     next(err);
   }
 };
 
-/**
- * GET /stock-allocations/:allocation_id
- * Get a single allocation record.
- */
-const getAllocationById = async (req, res, next) => {
+export const getAllocationById = async (req, res, next) => {
   try {
-    const allocation = await allocationService.getAllocationById(req.params.allocation_id);
-    return sendSuccess(res, allocation, 'Allocation retrieved successfully');
+    const allocation = await allocationService.getAllocationById(
+      req.params.allocation_id,
+    );
+    return sendSuccess(
+      res,
+      200,
+      "Allocation retrieved successfully",
+      allocation,
+    );
   } catch (err) {
     next(err);
   }
 };
 
-/**
- * GET /stock-allocations/summary/:barangay_id
- * Aggregated allocation summary per drug for a barangay.
- */
-const getAllocationSummary = async (req, res, next) => {
+export const getAllocationSummary = async (req, res, next) => {
   try {
-    const summary = await allocationService.getAllocationSummaryByBarangay(req.params.barangay_id);
-    return sendSuccess(res, summary, 'Allocation summary retrieved successfully');
+    const summary = await allocationService.getAllocationSummaryByBarangay(
+      req.params.barangay_id,
+    );
+    return sendSuccess(
+      res,
+      200,
+      "Allocation summary retrieved successfully",
+      summary,
+    );
   } catch (err) {
     next(err);
   }
 };
-
-module.exports = { createAllocation, getAllocations, getAllocationById, getAllocationSummary };
