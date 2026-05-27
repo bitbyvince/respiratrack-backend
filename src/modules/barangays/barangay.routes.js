@@ -1,24 +1,25 @@
-const express = require("express");
-const router = express.Router();
-const controller = require("./barangay.controller");
-const { authenticate } = require("../../middleware/auth.middleware");
-const {
+import { Router } from "express";
+import * as controller from "./barangay.controller.js";
+import { authenticate } from "../../middleware/auth.middleware.js";
+import {
   authorizeStaff,
   authorizeSuperAdmin,
   enforceBarangayScope,
-} = require("../../middleware/role.middleware");
-const { validate } = require("../../middleware/validate.middleware");
-const {
+} from "../../middleware/role.middleware.js";
+import { validate } from "../../middleware/validate.middleware.js";
+import {
   createBarangaySchema,
   updateBarangaySchema,
-} = require("./barangay.validator");
+} from "./barangay.validator.js";
+
+const router = Router();
 
 router.post(
   "/",
   authenticate,
   authorizeSuperAdmin,
   validate(createBarangaySchema),
-  controller.createBarangay,
+  controller.createBarangay
 );
 
 router.get(
@@ -26,7 +27,7 @@ router.get(
   authenticate,
   authorizeStaff,
   enforceBarangayScope,
-  controller.getBarangays,
+  controller.getBarangays
 );
 
 router.get(
@@ -34,7 +35,7 @@ router.get(
   authenticate,
   authorizeStaff,
   enforceBarangayScope,
-  controller.getBarangay,
+  controller.getBarangay
 );
 
 router.patch(
@@ -42,7 +43,7 @@ router.patch(
   authenticate,
   authorizeSuperAdmin,
   validate(updateBarangaySchema),
-  controller.updateBarangay,
+  controller.updateBarangay
 );
 
-module.exports = router;
+export default router;

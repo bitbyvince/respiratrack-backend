@@ -1,6 +1,6 @@
-const service = require("./dispensing.service");
+import * as service from "./dispensing.service.js";
 
-exports.createDispensingRecord = async (req, res) => {
+export async function createDispensingRecord(req, res) {
   try {
     const record = await service.createDispensingRecord(req.body, req.user);
     return res.status(201).json({
@@ -14,9 +14,9 @@ exports.createDispensingRecord = async (req, res) => {
       message: err.message || "Failed to create dispensing record.",
     });
   }
-};
+}
 
-exports.getDispensingRecords = async (req, res) => {
+export async function getDispensingRecords(req, res) {
   try {
     const {
       page = 1,
@@ -27,9 +27,10 @@ exports.getDispensingRecords = async (req, res) => {
       from_date,
       to_date,
     } = req.query;
+
     const result = await service.getDispensingRecords(
       { patient_id, barangay_id, medication_name, from_date, to_date },
-      { page, limit },
+      { page, limit }
     );
 
     return res.status(200).json({
@@ -43,9 +44,9 @@ exports.getDispensingRecords = async (req, res) => {
       message: err.message || "Failed to retrieve dispensing records.",
     });
   }
-};
+}
 
-exports.getDispensingRecord = async (req, res) => {
+export async function getDispensingRecord(req, res) {
   try {
     const { recordId } = req.params;
     const record = await service.getDispensingRecord(recordId);
@@ -60,22 +61,17 @@ exports.getDispensingRecord = async (req, res) => {
       message: err.message || "Dispensing record not found.",
     });
   }
-};
+}
 
-exports.getPatientDispensingRecords = async (req, res) => {
+export async function getPatientDispensingRecords(req, res) {
   try {
     const { patientId } = req.params;
-    const {
-      medication_name,
-      from_date,
-      to_date,
-      page = 1,
-      limit = 20,
-    } = req.query;
+    const { medication_name, from_date, to_date, page = 1, limit = 20 } = req.query;
+
     const records = await service.getPatientDispensingRecords(
       patientId,
       { medication_name, from_date, to_date },
-      { page, limit },
+      { page, limit }
     );
 
     return res.status(200).json({
@@ -89,22 +85,17 @@ exports.getPatientDispensingRecords = async (req, res) => {
       message: err.message || "Failed to retrieve patient dispensing records.",
     });
   }
-};
+}
 
-exports.getBarangayDispensingRecords = async (req, res) => {
+export async function getBarangayDispensingRecords(req, res) {
   try {
     const { barangayId } = req.params;
-    const {
-      medication_name,
-      from_date,
-      to_date,
-      page = 1,
-      limit = 20,
-    } = req.query;
+    const { medication_name, from_date, to_date, page = 1, limit = 20 } = req.query;
+
     const records = await service.getBarangayDispensingRecords(
       barangayId,
       { medication_name, from_date, to_date },
-      { page, limit },
+      { page, limit }
     );
 
     return res.status(200).json({
@@ -118,4 +109,4 @@ exports.getBarangayDispensingRecords = async (req, res) => {
       message: err.message || "Failed to retrieve barangay dispensing records.",
     });
   }
-};
+}

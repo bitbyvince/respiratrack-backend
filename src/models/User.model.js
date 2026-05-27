@@ -12,19 +12,19 @@ const userSchema = new mongoose.Schema(
     last_name: { type: String, required: true },
 
     // Staff login
-    email: { type: String, sparse: true, default: null },
+    email: { type: String, default: null },
     password_hash: { type: String, default: null },
 
     // Patient login
-    tb_case_number: { type: String, sparse: true, unique: true, default: null },
-    phone_number: { type: String, sparse: true, default: null },
+    tb_case_number: { type: String,  default: null },
+    phone_number: { type: String, default: null },
     pin_hash: { type: String, default: null },
 
     // Device token — used by both patients and nurses for FCM push notifications
     fcm_token: { type: String, default: null },
 
     // Patient reference
-    patient_id: { type: String, sparse: true, default: null },
+    patient_id: { type: String, default: null },
 
     // Assignment
     barangay_id: { type: String, default: null },
@@ -38,7 +38,7 @@ const userSchema = new mongoose.Schema(
 
 userSchema.index({ email: 1 }, { sparse: true });
 userSchema.index({ phone_number: 1 }, { sparse: true });
-userSchema.index({ tb_case_number: 1 }, { sparse: true, unique: true });
+userSchema.index({ tb_case_number: 1 }, { unique: true });
 userSchema.index({ patient_id: 1 }, { sparse: true });
 userSchema.index({ role: 1 });
 userSchema.index({ barangay_id: 1 });

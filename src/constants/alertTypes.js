@@ -17,4 +17,5 @@ const ALERT_TYPES = {
   ],
 };
 
-module.exports = ALERT_TYPES;
+export { ALERT_TYPES };
+export default ALERT_TYPES;

@@ -1,19 +1,26 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const getCollection = () => mongoose.connection.collection("compliance_snapshots");
 
-const normalizeDateFilter = (dateValue) => {
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function normalizeDateFilter(dateValue) {
   if (!dateValue) return null;
   const date = new Date(dateValue);
   if (Number.isNaN(date.getTime())) return null;
+
   const start = new Date(date);
   start.setUTCHours(0, 0, 0, 0);
+
   const end = new Date(date);
   end.setUTCHours(23, 59, 59, 999);
-  return { $gte: start, $lte: end };
-};
 
-exports.getComplianceSnapshots = async (filters, { page = 1, limit = 20 }) => {
+  return { $gte: start, $lte: end };
+}
+
+// ─── Service Functions ────────────────────────────────────────────────────────
+
+export async function getComplianceSnapshots(filters, { page = 1, limit = 20 }) {
   const query = {};
 
   if (filters.barangay_id) query.barangay_id = filters.barangay_id;
@@ -39,20 +46,17 @@ exports.getComplianceSnapshots = async (filters, { page = 1, limit = 20 }) => {
   ]);
 
   return { snapshots, total, page: parsedPage, limit: parsedLimit };
-};
+}
 
-exports.getLatestSnapshots = async (filters = {}) => {
+export async function getLatestSnapshots(filters = {}) {
   const query = {};
   if (filters.period) query.period = filters.period;
 
   const collection = getCollection();
-  return await collection
-    .find(query)
-    .sort({ snapshot_date: -1 })
-    .toArray();
-};
+  return collection.find(query).sort({ snapshot_date: -1 }).toArray();
+}
 
-exports.getBarangaySnapshot = async (barangayId, filters = {}) => {
+export async function getBarangaySnapshot(barangayId, filters = {}) {
   const query = { barangay_id: barangayId };
   if (filters.period) query.period = filters.period;
 
@@ -63,14 +67,12 @@ exports.getBarangaySnapshot = async (barangayId, filters = {}) => {
     .limit(1)
     .next();
 
-  if (!snapshot) {
-    throw new Error("Barangay compliance snapshot not found.");
-  }
+  if (!snapshot) throw new Error("Barangay compliance snapshot not found.");
 
   return snapshot;
-};
+}
 
-exports.getComplianceSummary = async (filters = {}) => {
+export async function getComplianceSummary(filters = {}) {
   const match = {};
   if (filters.period) match.period = filters.period;
   if (filters.barangay_id) match.barangay_id = filters.barangay_id;
@@ -97,7 +99,7 @@ exports.getComplianceSummary = async (filters = {}) => {
     ])
     .toArray();
 
-  return result[0] || {
+  return result[0] ?? {
     total_patients: 0,
     compliant_count: 0,
     at_risk_count: 0,
@@ -105,4 +107,4 @@ exports.getComplianceSummary = async (filters = {}) => {
     average_compliance_percentage: 0,
     average_risk_score: 0,
   };
-};
+}

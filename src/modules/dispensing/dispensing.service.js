@@ -1,7 +1,9 @@
-const DispensingRecord = require("../../models/DispensingRecord.model");
-const Patient = require("../../models/Patient.model");
+import DispensingRecord from "../../models/DispensingRecord.model.js";
+import Patient from "../../models/Patient.model.js";
 
-const normalizeDateRange = (from, to) => {
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function normalizeDateRange(from, to) {
   const query = {};
 
   if (from) {
@@ -20,9 +22,9 @@ const normalizeDateRange = (from, to) => {
   }
 
   return Object.keys(query).length ? query : null;
-};
+}
 
-const buildQuery = (filters = {}) => {
+function buildQuery(filters = {}) {
   const query = {};
 
   if (filters.patient_id) query.patient_id = filters.patient_id;
@@ -33,31 +35,22 @@ const buildQuery = (filters = {}) => {
   if (dateRange) query.dispensed_date = dateRange;
 
   return query;
-};
+}
 
-const generateRecordId = async () => {
+async function generateRecordId() {
   const count = await DispensingRecord.countDocuments();
   return `DISP-${String(count + 1).padStart(4, "0")}`;
-};
+}
 
-exports.createDispensingRecord = async (data, user) => {
-  const {
-    patient_id,
-    medication_name,
-    dosage,
-    quantity,
-    dispensed_date,
-    dispensed_by,
-    notes,
-  } = data;
+// ─── Service Functions ────────────────────────────────────────────────────────
+
+export async function createDispensingRecord(data, user) {
+  const { patient_id, medication_name, dosage, quantity, dispensed_date, dispensed_by, notes } = data;
 
   const patient = await Patient.findOne({ patient_id });
-  if (!patient) {
-    throw new Error("Patient not found.");
-  }
+  if (!patient) throw new Error("Patient not found.");
 
   const recordId = await generateRecordId();
-  const dispensedDate = new Date(dispensed_date);
 
   const record = await DispensingRecord.create({
     record_id: recordId,
@@ -68,80 +61,61 @@ exports.createDispensingRecord = async (data, user) => {
     medication_name,
     dosage: dosage || "",
     quantity,
-    dispensed_date: dispensedDate,
+    dispensed_date: new Date(dispensed_date),
     dispensed_by,
     notes: notes || "",
     created_at: new Date(),
     updated_at: new Date(),
-    created_by: user && user.user_id ? user.user_id : null,
+    created_by: user?.user_id ?? null,
   });
 
   return record;
-};
+}
 
-exports.getDispensingRecords = async (filters, { page = 1, limit = 20 }) => {
+export async function getDispensingRecords(filters, { page = 1, limit = 20 }) {
   const query = buildQuery(filters);
   const parsedPage = parseInt(page, 10) || 1;
   const parsedLimit = parseInt(limit, 10) || 20;
   const skip = (parsedPage - 1) * parsedLimit;
 
   const [records, total] = await Promise.all([
-    DispensingRecord.find(query)
-      .sort({ dispensed_date: -1 })
-      .skip(skip)
-      .limit(parsedLimit),
+    DispensingRecord.find(query).sort({ dispensed_date: -1 }).skip(skip).limit(parsedLimit),
     DispensingRecord.countDocuments(query),
   ]);
 
   return { records, total, page: parsedPage, limit: parsedLimit };
-};
+}
 
-exports.getDispensingRecord = async (recordId) => {
+export async function getDispensingRecord(recordId) {
   const record = await DispensingRecord.findOne({ record_id: recordId });
-  if (!record) {
-    throw new Error("Dispensing record not found.");
-  }
+  if (!record) throw new Error("Dispensing record not found.");
   return record;
-};
+}
 
-exports.getPatientDispensingRecords = async (
-  patientId,
-  filters = {},
-  { page = 1, limit = 20 },
-) => {
+export async function getPatientDispensingRecords(patientId, filters = {}, { page = 1, limit = 20 }) {
   const query = buildQuery({ ...filters, patient_id: patientId });
   const parsedPage = parseInt(page, 10) || 1;
   const parsedLimit = parseInt(limit, 10) || 20;
   const skip = (parsedPage - 1) * parsedLimit;
 
   const [records, total] = await Promise.all([
-    DispensingRecord.find(query)
-      .sort({ dispensed_date: -1 })
-      .skip(skip)
-      .limit(parsedLimit),
+    DispensingRecord.find(query).sort({ dispensed_date: -1 }).skip(skip).limit(parsedLimit),
     DispensingRecord.countDocuments(query),
   ]);
 
   return { records, total, page: parsedPage, limit: parsedLimit };
-};
+}
 
-exports.getBarangayDispensingRecords = async (
-  barangayId,
-  filters = {},
-  { page = 1, limit = 20 },
-) => {
+export async function getBarangayDispensingRecords(barangayId, filters = {}, { page = 1, limit = 20 }) {
   const query = buildQuery({ ...filters, barangay_id: barangayId });
   const parsedPage = parseInt(page, 10) || 1;
   const parsedLimit = parseInt(limit, 10) || 20;
   const skip = (parsedPage - 1) * parsedLimit;
 
   const [records, total] = await Promise.all([
-    DispensingRecord.find(query)
-      .sort({ dispensed_date: -1 })
-      .skip(skip)
-      .limit(parsedLimit),
+    DispensingRecord.find(query).sort({ dispensed_date: -1 }).skip(skip).limit(parsedLimit),
     DispensingRecord.countDocuments(query),
   ]);
 
   return { records, total, page: parsedPage, limit: parsedLimit };
-};
+}

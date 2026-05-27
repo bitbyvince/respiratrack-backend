@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 // ============================================================
 // SputumTest Model
@@ -129,23 +129,17 @@ const sputumTestSchema = new mongoose.Schema(
       updatedAt: 'updated_at',
     },
     collection: 'sputum_tests',
-  }
+  },
 );
 
 // ── Indexes ──────────────────────────────────────────────────
-// One test per patient per treatment month — enforced
-sputumTestSchema.index(
-  { patient_id: 1, month_in_treatment: 1 },
-  { unique: true }
-);
+sputumTestSchema.index({ patient_id: 1, month_in_treatment: 1 }, { unique: true });
 sputumTestSchema.index({ patient_id: 1 });
 sputumTestSchema.index({ tb_case_number: 1 });
 sputumTestSchema.index({ barangay_id: 1 });
 sputumTestSchema.index({ due_date: 1 });
 sputumTestSchema.index({ status: 1 });
 sputumTestSchema.index({ result: 1 });
-
-// Reminder job query — due in 3 days and reminder not yet sent
 sputumTestSchema.index({ status: 1, reminder_sent: 1, due_date: 1 });
 
 // ── Static: get upcoming tests due within N days ─────────────
@@ -183,4 +177,4 @@ sputumTestSchema.methods.markReminderSent = function () {
   return this.save();
 };
 
-module.exports = mongoose.model('SputumTest', sputumTestSchema);
+export default mongoose.model('SputumTest', sputumTestSchema);

@@ -1,5 +1,5 @@
-const Appointment = require('../../models/Appointment.model');
-const Patient = require('../../models/Patient.model');
+import Appointment from '../../models/Appointment.model.js';
+import Patient from '../../models/Patient.model.js';
 
 const VALID_PURPOSES = ['Follow-up', 'Sputum Test', 'Emergency', 'Routine'];
 const VALID_STATUSES = ['Pending', 'Confirmed', 'Completed', 'Cancelled'];
@@ -9,14 +9,8 @@ const generateAppointmentId = async () => {
   return `APT-${String(count + 1).padStart(4, '0')}`;
 };
 
-exports.createAppointment = async (data, user) => {
-  const {
-    patient_id,
-    scheduled_date,
-    scheduled_time,
-    purpose,
-    notes,
-  } = data;
+export const createAppointment = async (data, user) => {
+  const { patient_id, scheduled_date, scheduled_time, purpose, notes } = data;
 
   const patient = await Patient.findOne({ patient_id });
   if (!patient) throw new Error('Patient not found.');
@@ -60,7 +54,7 @@ exports.createAppointment = async (data, user) => {
   return appointment;
 };
 
-exports.getAppointments = async (filters, { page, limit }) => {
+export const getAppointments = async (filters, { page, limit }) => {
   const { status, purpose, from, to } = filters;
   const query = {};
 
@@ -81,20 +75,20 @@ exports.getAppointments = async (filters, { page, limit }) => {
   return { appointments, total, page: parseInt(page), limit: parseInt(limit) };
 };
 
-exports.getAppointment = async (appointmentId) => {
+export const getAppointment = async (appointmentId) => {
   const appointment = await Appointment.findOne({ appointment_id: appointmentId });
   if (!appointment) throw new Error('Appointment not found.');
   return appointment;
 };
 
-exports.getPatientAppointments = async (patientId, { status, purpose }) => {
+export const getPatientAppointments = async (patientId, { status, purpose }) => {
   const query = { patient_id: patientId };
   if (status) query.status = status;
   if (purpose) query.purpose = purpose;
   return await Appointment.find(query).sort({ scheduled_date: -1 });
 };
 
-exports.getBarangayAppointments = async (barangayId, { status, purpose, date }) => {
+export const getBarangayAppointments = async (barangayId, { status, purpose, date }) => {
   const query = { barangay_id: barangayId };
   if (status) query.status = status;
   if (purpose) query.purpose = purpose;
@@ -106,7 +100,7 @@ exports.getBarangayAppointments = async (barangayId, { status, purpose, date }) 
   return await Appointment.find(query).sort({ scheduled_date: 1 });
 };
 
-exports.confirmAppointment = async (appointmentId, user) => {
+export const confirmAppointment = async (appointmentId, user) => {
   const appointment = await Appointment.findOne({ appointment_id: appointmentId });
   if (!appointment) throw new Error('Appointment not found.');
   if (appointment.status !== 'Pending') throw new Error('Only pending appointments can be confirmed.');
@@ -119,7 +113,7 @@ exports.confirmAppointment = async (appointmentId, user) => {
   return appointment;
 };
 
-exports.completeAppointment = async (appointmentId, user) => {
+export const completeAppointment = async (appointmentId, user) => {
   const appointment = await Appointment.findOne({ appointment_id: appointmentId });
   if (!appointment) throw new Error('Appointment not found.');
   if (appointment.status !== 'Confirmed') throw new Error('Only confirmed appointments can be marked as completed.');
@@ -131,7 +125,7 @@ exports.completeAppointment = async (appointmentId, user) => {
   return appointment;
 };
 
-exports.cancelAppointment = async (appointmentId, user) => {
+export const cancelAppointment = async (appointmentId, user) => {
   const appointment = await Appointment.findOne({ appointment_id: appointmentId });
   if (!appointment) throw new Error('Appointment not found.');
   if (appointment.status === 'Completed') throw new Error('Completed appointments cannot be cancelled.');
@@ -144,7 +138,7 @@ exports.cancelAppointment = async (appointmentId, user) => {
   return appointment;
 };
 
-exports.updateAppointment = async (appointmentId, data, user) => {
+export const updateAppointment = async (appointmentId, data, user) => {
   const appointment = await Appointment.findOne({ appointment_id: appointmentId });
   if (!appointment) throw new Error('Appointment not found.');
   if (appointment.status === 'Completed') throw new Error('Completed appointments cannot be edited.');

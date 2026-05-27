@@ -1,11 +1,11 @@
-const Patient = require("../../models/Patient.model");
-const User = require("../../models/User.model");
-const { createError } = require("../../utils/apiResponse");
-const { generateCaseNumber } = require("../../utils/caseNumberGenerator");
-const { computeRiskScore } = require("../../utils/riskScoring");
-const { computeCompliance } = require("../../utils/complianceCalculator");
-const { exportPatientListPdf } = require("../../utils/pdfExporter");
-const ROLES = require("../../constants/roles");
+import Patient from '../../models/Patient.model.js';
+import User from '../../models/User.model.js';
+import { createError } from '../../utils/apiResponse.js';
+import { generateCaseNumber } from '../../utils/caseNumberGenerator.js';
+import { computeRiskScore } from '../../utils/riskScoring.js';
+import { computeCompliance } from '../../utils/complianceCalculator.js';
+import { exportPatientListPdf } from '../../utils/pdfExporter.js';
+import ROLES from '../../constants/roles.js';
 
 // ── PAGINATION ───────────────────────────────────────────
 const DEFAULT_PAGE = 1;
@@ -20,25 +20,17 @@ const getPagination = (query) => {
 
 // ── BARANGAY SCOPE GUARD ─────────────────────────────────
 const assertSameBarangay = (requester, targetBarangayId) => {
-  if (
-    requester.role !== ROLES.SUPER_ADMIN &&
-    requester.barangay_id !== targetBarangayId
-  ) {
-    throw createError(
-      403,
-      "Access denied. Patient belongs to a different barangay.",
-    );
+  if (requester.role !== ROLES.SUPER_ADMIN && requester.barangay_id !== targetBarangayId) {
+    throw createError(403, 'Access denied. Patient belongs to a different barangay.');
   }
 };
 
 // ── GENERATE SEQUENTIAL PATIENT ID ──────────────────────
 const generatePatientId = async () => {
-  const latest = await Patient.findOne()
-    .sort({ created_at: -1 })
-    .select("patient_id");
-  if (!latest) return "PT-0001";
-  const num = parseInt(latest.patient_id.split("-")[1]) + 1;
-  return `PT-${String(num).padStart(4, "0")}`;
+  const latest = await Patient.findOne().sort({ created_at: -1 }).select('patient_id');
+  if (!latest) return 'PT-0001';
+  const num = parseInt(latest.patient_id.split('-')[1]) + 1;
+  return `PT-${String(num).padStart(4, '0')}`;
 };
 
 // ── COMPUTE TREATMENT END DATE ───────────────────────────
@@ -49,12 +41,11 @@ const computeEndDate = (dateStarted, durationMonths) => {
 };
 
 // ── BUILD SPUTUM SCHEDULE ────────────────────────────────
-// WHO standard: Month 2, 5, 6
 const buildSputumSchedule = (dateStarted) => {
   return [2, 5, 6].map((month) => {
     const due = new Date(dateStarted);
     due.setMonth(due.getMonth() + month);
-    return { month, due_date: due, status: "Pending" };
+    return { month, due_date: due, status: 'Pending' };
   });
 };
 
@@ -69,25 +60,19 @@ const computeTreatmentDay = (dateStarted) => {
 // ================================================================
 // LIST & SEARCH PATIENTS
 // ================================================================
-const listPatients = async (filters = {}) => {
+export const listPatients = async (filters = {}) => {
   const { page, limit, skip } = getPagination(filters);
 
   const query = {
     ...(filters.barangay_id && { barangay_id: filters.barangay_id }),
-    ...(filters.risk_level && {
-      "compliance.risk_level": filters.risk_level,
-    }),
-    ...(filters.treatment_phase && {
-      treatment_phase: filters.treatment_phase,
-    }),
-    ...(filters.is_active !== undefined && {
-      is_active: filters.is_active === "true",
-    }),
+    ...(filters.risk_level && { 'compliance.risk_level': filters.risk_level }),
+    ...(filters.treatment_phase && { treatment_phase: filters.treatment_phase }),
+    ...(filters.is_active !== undefined && { is_active: filters.is_active === 'true' }),
     ...(filters.search && {
       $or: [
-        { full_name: { $regex: filters.search, $options: "i" } },
-        { tb_case_number: { $regex: filters.search, $options: "i" } },
-        { patient_id: { $regex: filters.search, $options: "i" } },
+        { full_name: { $regex: filters.search, $options: 'i' } },
+        { tb_case_number: { $regex: filters.search, $options: 'i' } },
+        { patient_id: { $regex: filters.search, $options: 'i' } },
       ],
     }),
   };
@@ -103,9 +88,9 @@ const listPatients = async (filters = {}) => {
 // ================================================================
 // GET PATIENT BY ID
 // ================================================================
-const getPatientById = async (patientId, requester) => {
+export const getPatientById = async (patientId, requester) => {
   const patient = await Patient.findOne({ patient_id: patientId });
-  if (!patient) throw createError(404, "Patient not found.");
+  if (!patient) throw createError(404, 'Patient not found.');
   assertSameBarangay(requester, patient.barangay_id);
   return patient;
 };
@@ -113,34 +98,23 @@ const getPatientById = async (patientId, requester) => {
 // ================================================================
 // GET PATIENT BY USER ID (mobile self-view)
 // ================================================================
-const getPatientByUserId = async (userId) => {
+export const getPatientByUserId = async (userId) => {
   const patient = await Patient.findOne({ user_id: userId });
-  if (!patient)
-    throw createError(404, "No patient record linked to this account.");
+  if (!patient) throw createError(404, 'No patient record linked to this account.');
   return patient;
 };
 
 // ================================================================
 // REGISTER PATIENT
 // ================================================================
-const registerPatient = async (data, requester) => {
-  // Check for duplicate phone
-  const existingPhone = await Patient.findOne({
-    phone_number: data.phone_number,
-  });
-  if (existingPhone)
-    throw createError(409, "A patient with this phone number already exists.");
+export const registerPatient = async (data, requester) => {
+  const existingPhone = await Patient.findOne({ phone_number: data.phone_number });
+  if (existingPhone) throw createError(409, 'A patient with this phone number already exists.');
 
-  // Check for duplicate PhilHealth if provided
   if (data.philhealth_number) {
-    const existingPhilHealth = await Patient.findOne({
-      philhealth_number: data.philhealth_number,
-    });
+    const existingPhilHealth = await Patient.findOne({ philhealth_number: data.philhealth_number });
     if (existingPhilHealth)
-      throw createError(
-        409,
-        "A patient with this PhilHealth number already exists.",
-      );
+      throw createError(409, 'A patient with this PhilHealth number already exists.');
   }
 
   const patientId = await generatePatientId();
@@ -154,10 +128,10 @@ const registerPatient = async (data, requester) => {
     doses_missed: 0,
     doses_remaining: 168,
     compliance_percentage: 0,
-    adherence: "Pending",
+    adherence: 'Pending',
     consecutive_missed_doses: 0,
     last_dose_taken: null,
-    risk_level: "Compliant",
+    risk_level: 'Compliant',
   };
 
   const initialRiskScore = {
@@ -166,7 +140,7 @@ const registerPatient = async (data, requester) => {
       consecutive_missed: 0,
       symptom_frequency: 0,
       days_into_treatment: 1,
-      phase_weight: data.treatment_phase === "Intensive" ? 1.2 : 1.0,
+      phase_weight: data.treatment_phase === 'Intensive' ? 1.2 : 1.0,
     },
     last_computed: new Date(),
   };
@@ -174,33 +148,24 @@ const registerPatient = async (data, requester) => {
   const patient = new Patient({
     patient_id: patientId,
     tb_case_number: tbCaseNumber,
-    user_id: null, // linked later when mobile account is created
+    user_id: null,
     registered_by: requester.user_id,
-
-    // Personal info
     last_name: data.last_name,
     first_name: data.first_name,
-    middle_name: data.middle_name || "",
-    full_name:
-      `${data.first_name} ${data.middle_name || ""} ${data.last_name}`.trim(),
+    middle_name: data.middle_name || '',
+    full_name: `${data.first_name} ${data.middle_name || ''} ${data.last_name}`.trim(),
     birth_date: new Date(data.birth_date),
     age: data.age,
     sex: data.sex,
     philhealth_number: data.philhealth_number || null,
     phone_number: data.phone_number,
     email: data.email || null,
-
-    // Location
     barangay_id: requester.barangay_id,
     barangay_name: data.barangay_name,
     health_center_id: requester.health_center_id,
     health_center_name: data.health_center_name,
     assigned_nurse_id:
-      requester.role === ROLES.NURSE
-        ? requester.user_id
-        : data.assigned_nurse_id || null,
-
-    // Diagnosis
+      requester.role === ROLES.NURSE ? requester.user_id : data.assigned_nurse_id || null,
     diagnosis: data.diagnosis,
     date_of_diagnosis: new Date(data.date_of_diagnosis),
     classification: data.classification,
@@ -211,8 +176,6 @@ const registerPatient = async (data, requester) => {
       is_drug_susceptible: data.patient_type?.is_drug_susceptible ?? true,
       is_drug_resistant: data.patient_type?.is_drug_resistant ?? false,
     },
-
-    // Treatment
     treatment_phase: data.treatment_phase,
     location_of_treatment: data.location_of_treatment,
     date_started: new Date(data.date_started),
@@ -222,45 +185,28 @@ const registerPatient = async (data, requester) => {
     dat_support: data.dat_support,
     regimen_type: data.regimen_type,
     drug_regimen: data.drug_regimen,
-    treatment_supporter: data.treatment_supporter || {
-      name: null,
-      contact: null,
-    },
-
-    // Outcome
+    treatment_supporter: data.treatment_supporter || { name: null, contact: null },
     treatment_outcome: {
-      status: "On Treatment",
+      status: 'On Treatment',
       date_of_outcome: null,
       recorded_by: null,
     },
-
-    // Contact tracing
     contact_tracing: {
       number_of_contacts: data.contact_tracing?.number_of_contacts ?? 0,
-      schedule: data.contact_tracing?.schedule
-        ? new Date(data.contact_tracing.schedule)
-        : null,
+      schedule: data.contact_tracing?.schedule ? new Date(data.contact_tracing.schedule) : null,
     },
-
-    additional_notes: data.additional_notes || "",
-
-    // Sputum
+    additional_notes: data.additional_notes || '',
     sputum_test_schedule: sputumSchedule,
-
-    // Compliance & risk
     compliance: initialCompliance,
     risk_score: initialRiskScore,
-
-    // Escalation
     escalation: {
       level: 0,
       escalated_at: null,
-      escalated_by: "system",
+      escalated_by: 'system',
       acknowledged_by: null,
       acknowledged_at: null,
-      notes: "",
+      notes: '',
     },
-
     is_active: true,
     created_at: new Date(),
     updated_at: new Date(),
@@ -273,24 +219,18 @@ const registerPatient = async (data, requester) => {
 // ================================================================
 // UPDATE PATIENT
 // ================================================================
-const updatePatient = async (patientId, data, requester) => {
+export const updatePatient = async (patientId, data, requester) => {
   const patient = await Patient.findOne({ patient_id: patientId });
-  if (!patient) throw createError(404, "Patient not found.");
+  if (!patient) throw createError(404, 'Patient not found.');
   assertSameBarangay(requester, patient.barangay_id);
 
-  // Rebuild full_name if name fields are changing
   const firstName = data.first_name || patient.first_name;
   const middleName = data.middle_name ?? patient.middle_name;
   const lastName = data.last_name || patient.last_name;
-  const fullName = `${firstName} ${middleName || ""} ${lastName}`.trim();
+  const fullName = `${firstName} ${middleName || ''} ${lastName}`.trim();
 
-  // Recompute end date if date_started is being updated
-  const dateStarted = data.date_started
-    ? new Date(data.date_started)
-    : patient.date_started;
+  const dateStarted = data.date_started ? new Date(data.date_started) : patient.date_started;
   const endDate = computeEndDate(dateStarted, 6);
-
-  // Recompute sputum schedule if date_started changed
   const sputumSchedule = data.date_started
     ? buildSputumSchedule(dateStarted)
     : patient.sputum_test_schedule;
@@ -303,24 +243,16 @@ const updatePatient = async (patientId, data, requester) => {
     ...(data.birth_date && { birth_date: new Date(data.birth_date) }),
     ...(data.age && { age: data.age }),
     ...(data.sex && { sex: data.sex }),
-    ...(data.philhealth_number !== undefined && {
-      philhealth_number: data.philhealth_number,
-    }),
+    ...(data.philhealth_number !== undefined && { philhealth_number: data.philhealth_number }),
     ...(data.phone_number && { phone_number: data.phone_number }),
     ...(data.email !== undefined && { email: data.email }),
     ...(data.diagnosis && { diagnosis: data.diagnosis }),
-    ...(data.date_of_diagnosis && {
-      date_of_diagnosis: new Date(data.date_of_diagnosis),
-    }),
+    ...(data.date_of_diagnosis && { date_of_diagnosis: new Date(data.date_of_diagnosis) }),
     ...(data.classification && { classification: data.classification }),
-    ...(data.bacteriological_status && {
-      bacteriological_status: data.bacteriological_status,
-    }),
+    ...(data.bacteriological_status && { bacteriological_status: data.bacteriological_status }),
     ...(data.patient_type && { patient_type: data.patient_type }),
     ...(data.treatment_phase && { treatment_phase: data.treatment_phase }),
-    ...(data.location_of_treatment && {
-      location_of_treatment: data.location_of_treatment,
-    }),
+    ...(data.location_of_treatment && { location_of_treatment: data.location_of_treatment }),
     ...(data.date_started && {
       date_started: dateStarted,
       end_date: endDate,
@@ -330,24 +262,16 @@ const updatePatient = async (patientId, data, requester) => {
     ...(data.dat_support && { dat_support: data.dat_support }),
     ...(data.regimen_type && { regimen_type: data.regimen_type }),
     ...(data.drug_regimen && { drug_regimen: data.drug_regimen }),
-    ...(data.treatment_supporter && {
-      treatment_supporter: data.treatment_supporter,
-    }),
+    ...(data.treatment_supporter && { treatment_supporter: data.treatment_supporter }),
     ...(data.contact_tracing && { contact_tracing: data.contact_tracing }),
-    ...(data.additional_notes !== undefined && {
-      additional_notes: data.additional_notes,
-    }),
-    ...(data.assigned_nurse_id && {
-      assigned_nurse_id: data.assigned_nurse_id,
-    }),
+    ...(data.additional_notes !== undefined && { additional_notes: data.additional_notes }),
+    ...(data.assigned_nurse_id && { assigned_nurse_id: data.assigned_nurse_id }),
     updated_at: new Date(),
   };
 
-  const updated = await Patient.findOneAndUpdate(
-    { patient_id: patientId },
-    allowedUpdates,
-    { new: true },
-  );
+  const updated = await Patient.findOneAndUpdate({ patient_id: patientId }, allowedUpdates, {
+    new: true,
+  });
 
   return updated;
 };
@@ -355,28 +279,23 @@ const updatePatient = async (patientId, data, requester) => {
 // ================================================================
 // UPDATE TREATMENT OUTCOME
 // ================================================================
-const updateTreatmentOutcome = async (patientId, data, requester) => {
+export const updateTreatmentOutcome = async (patientId, data, requester) => {
   const patient = await Patient.findOne({ patient_id: patientId });
-  if (!patient) throw createError(404, "Patient not found.");
+  if (!patient) throw createError(404, 'Patient not found.');
   assertSameBarangay(requester, patient.barangay_id);
 
-  // Once outcome is set to a terminal status, mark patient inactive
   const terminalStatuses = [
-    "Cured",
-    "Treatment Completed",
-    "Treatment Failed",
-    "Died",
-    "Lost to Follow-Up",
-    "Not Evaluated",
+    'Cured', 'Treatment Completed', 'Treatment Failed',
+    'Died', 'Lost to Follow-Up', 'Not Evaluated',
   ];
   const isTerminal = terminalStatuses.includes(data.status);
 
   const updated = await Patient.findOneAndUpdate(
     { patient_id: patientId },
     {
-      "treatment_outcome.status": data.status,
-      "treatment_outcome.date_of_outcome": new Date(),
-      "treatment_outcome.recorded_by": requester.user_id,
+      'treatment_outcome.status': data.status,
+      'treatment_outcome.date_of_outcome': new Date(),
+      'treatment_outcome.recorded_by': requester.user_id,
       ...(isTerminal && { is_active: false }),
       updated_at: new Date(),
     },
@@ -389,15 +308,12 @@ const updateTreatmentOutcome = async (patientId, data, requester) => {
 // ================================================================
 // UPDATE SPUTUM SCHEDULE
 // ================================================================
-const updateSputumSchedule = async (patientId, data, requester) => {
+export const updateSputumSchedule = async (patientId, data, requester) => {
   const patient = await Patient.findOne({ patient_id: patientId });
-  if (!patient) throw createError(404, "Patient not found.");
+  if (!patient) throw createError(404, 'Patient not found.');
   assertSameBarangay(requester, patient.barangay_id);
 
-  // Update the specific month slot in the sputum_test_schedule array
-  const scheduleIndex = patient.sputum_test_schedule.findIndex(
-    (s) => s.month === data.month,
-  );
+  const scheduleIndex = patient.sputum_test_schedule.findIndex((s) => s.month === data.month);
   if (scheduleIndex === -1)
     throw createError(400, `No sputum test scheduled for month ${data.month}.`);
 
@@ -410,10 +326,7 @@ const updateSputumSchedule = async (patientId, data, requester) => {
 
   const updated = await Patient.findOneAndUpdate(
     { patient_id: patientId },
-    {
-      sputum_test_schedule: updatedSchedule,
-      updated_at: new Date(),
-    },
+    { sputum_test_schedule: updatedSchedule, updated_at: new Date() },
     { new: true },
   );
 
@@ -423,9 +336,9 @@ const updateSputumSchedule = async (patientId, data, requester) => {
 // ================================================================
 // DEACTIVATE / REACTIVATE
 // ================================================================
-const setPatientActiveStatus = async (patientId, isActive, requester) => {
+export const setPatientActiveStatus = async (patientId, isActive, requester) => {
   const patient = await Patient.findOne({ patient_id: patientId });
-  if (!patient) throw createError(404, "Patient not found.");
+  if (!patient) throw createError(404, 'Patient not found.');
   assertSameBarangay(requester, patient.barangay_id);
 
   await Patient.findOneAndUpdate(
@@ -437,37 +350,28 @@ const setPatientActiveStatus = async (patientId, isActive, requester) => {
 // ================================================================
 // EXPORT PDF
 // ================================================================
-const exportPatientsPdf = async (filters = {}) => {
+export const exportPatientsPdf = async (filters = {}) => {
   const query = {
     ...(filters.barangay_id && { barangay_id: filters.barangay_id }),
-    ...(filters.risk_level && {
-      "compliance.risk_level": filters.risk_level,
-    }),
-    ...(filters.treatment_phase && {
-      treatment_phase: filters.treatment_phase,
-    }),
-    ...(filters.is_active !== undefined && {
-      is_active: filters.is_active === "true",
-    }),
+    ...(filters.risk_level && { 'compliance.risk_level': filters.risk_level }),
+    ...(filters.treatment_phase && { treatment_phase: filters.treatment_phase }),
+    ...(filters.is_active !== undefined && { is_active: filters.is_active === 'true' }),
   };
 
   const patients = await Patient.find(query).sort({ created_at: -1 });
-  if (!patients.length)
-    throw createError(404, "No patients found for the given filters.");
+  if (!patients.length) throw createError(404, 'No patients found for the given filters.');
 
-  const pdfBuffer = await exportPatientListPdf(patients);
-  return pdfBuffer;
+  return await exportPatientListPdf(patients);
 };
 
 // ================================================================
 // LINK MOBILE ACCOUNT TO PATIENT RECORD
-// Called internally when a patient user account is created
 // ================================================================
-const linkUserAccount = async (patientId, userId) => {
+export const linkUserAccount = async (patientId, userId) => {
   const patient = await Patient.findOne({ patient_id: patientId });
-  if (!patient) throw createError(404, "Patient not found.");
+  if (!patient) throw createError(404, 'Patient not found.');
   if (patient.user_id)
-    throw createError(409, "This patient already has a linked mobile account.");
+    throw createError(409, 'This patient already has a linked mobile account.');
 
   await Patient.findOneAndUpdate(
     { patient_id: patientId },
@@ -477,11 +381,10 @@ const linkUserAccount = async (patientId, userId) => {
 
 // ================================================================
 // RECOMPUTE COMPLIANCE & RISK SCORE
-// Called by medication-log service after every dose log
 // ================================================================
-const recomputePatientCompliance = async (patientId) => {
+export const recomputePatientCompliance = async (patientId) => {
   const patient = await Patient.findOne({ patient_id: patientId });
-  if (!patient) throw createError(404, "Patient not found.");
+  if (!patient) throw createError(404, 'Patient not found.');
 
   const updatedCompliance = await computeCompliance(patient);
   const updatedRiskScore = computeRiskScore({
@@ -493,32 +396,6 @@ const recomputePatientCompliance = async (patientId) => {
 
   await Patient.findOneAndUpdate(
     { patient_id: patientId },
-    {
-      compliance: updatedCompliance,
-      risk_score: updatedRiskScore,
-      updated_at: new Date(),
-    },
+    { compliance: updatedCompliance, risk_score: updatedRiskScore, updated_at: new Date() },
   );
-};
-
-// ── Helper used internally by recomputePatientCompliance ─
-const computeTreatmentDay = (dateStarted) => {
-  const today = new Date();
-  const start = new Date(dateStarted);
-  const diff = Math.floor((today - start) / (1000 * 60 * 60 * 24));
-  return Math.max(diff + 1, 1);
-};
-
-module.exports = {
-  listPatients,
-  getPatientById,
-  getPatientByUserId,
-  registerPatient,
-  updatePatient,
-  updateTreatmentOutcome,
-  updateSputumSchedule,
-  setPatientActiveStatus,
-  exportPatientsPdf,
-  linkUserAccount,
-  recomputePatientCompliance,
 };

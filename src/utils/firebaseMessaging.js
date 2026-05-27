@@ -80,3 +80,5 @@ export const sendToTopic = async ({ topic, title, body, data = {} }) => {
     throw err;
   }
 };
+
+export const sendPushNotification = sendToDevice;

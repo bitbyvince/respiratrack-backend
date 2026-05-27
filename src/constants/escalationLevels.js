@@ -12,4 +12,5 @@ const ESCALATION_LEVELS = {
   ALL: [0, 1, 2, 3],
 };
 
-module.exports = ESCALATION_LEVELS;
+export { ESCALATION_LEVELS };
+export default ESCALATION_LEVELS;

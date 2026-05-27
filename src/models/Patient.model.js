@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 // ============================================================
 // Patient Model
@@ -17,7 +17,7 @@ const drugRegimenEntrySchema = new mongoose.Schema(
     unit:                { type: String, required: true, trim: true, default: 'tablet' },
     number_to_be_taken:  { type: Number, required: true, min: 1 },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const sputumTestScheduleEntrySchema = new mongoose.Schema(
@@ -26,7 +26,7 @@ const sputumTestScheduleEntrySchema = new mongoose.Schema(
     due_date: { type: Date,   required: true },
     status:   { type: String, required: true, enum: ['Pending', 'Completed', 'Missed'], default: 'Pending' },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const patientSchema = new mongoose.Schema(
@@ -34,7 +34,6 @@ const patientSchema = new mongoose.Schema(
     patient_id: {
       type: String,
       required: true,
-      unique: true,
       trim: true,
       // Format: PT-XXXX
     },
@@ -42,7 +41,6 @@ const patientSchema = new mongoose.Schema(
     tb_case_number: {
       type: String,
       required: true,
-      unique: true,
       trim: true,
       // Format: PHNT-137-071-S26-XXXX
     },
@@ -144,10 +142,10 @@ const patientSchema = new mongoose.Schema(
     },
 
     patient_type: {
-      is_new:             { type: Boolean, default: true },
-      is_retreatment:     { type: Boolean, default: false },
-      is_drug_susceptible:{ type: Boolean, default: true },
-      is_drug_resistant:  { type: Boolean, default: false },
+      is_new:              { type: Boolean, default: true },
+      is_retreatment:      { type: Boolean, default: false },
+      is_drug_susceptible: { type: Boolean, default: true },
+      is_drug_resistant:   { type: Boolean, default: false },
     },
 
     // ── Treatment ────────────────────────────────────────────
@@ -220,14 +218,14 @@ const patientSchema = new mongoose.Schema(
         ],
         default: 'On Treatment',
       },
-      date_of_outcome: { type: Date, default: null },
+      date_of_outcome: { type: Date,   default: null },
       recorded_by:     { type: String, trim: true, default: null, ref: 'User' },
     },
 
     // ── Contact Tracing ──────────────────────────────────────
     contact_tracing: {
       number_of_contacts: { type: Number, default: 0, min: 0 },
-      schedule:           { type: Date, default: null },
+      schedule:           { type: Date,   default: null },
     },
 
     additional_notes: {
@@ -245,18 +243,18 @@ const patientSchema = new mongoose.Schema(
 
     // ── Compliance ───────────────────────────────────────────
     compliance: {
-      total_doses_required:    { type: Number, required: true, min: 0 },
-      doses_taken:             { type: Number, default: 0,     min: 0 },
-      doses_missed:            { type: Number, default: 0,     min: 0 },
-      doses_remaining:         { type: Number, default: 0,     min: 0 },
-      compliance_percentage:   { type: Number, default: 0,     min: 0, max: 100 },
+      total_doses_required:     { type: Number, required: true, min: 0 },
+      doses_taken:              { type: Number, default: 0,     min: 0 },
+      doses_missed:             { type: Number, default: 0,     min: 0 },
+      doses_remaining:          { type: Number, default: 0,     min: 0 },
+      compliance_percentage:    { type: Number, default: 0,     min: 0, max: 100 },
       adherence: {
         type: String,
         enum: ['Regular', 'Irregular', 'Pending'],
         default: 'Pending',
       },
       consecutive_missed_doses: { type: Number, default: 0, min: 0 },
-      last_dose_taken:          { type: Date, default: null },
+      last_dose_taken:          { type: Date,   default: null },
       risk_level: {
         type: String,
         enum: ['Compliant', 'At Risk', 'Defaulter'],
@@ -309,17 +307,17 @@ const patientSchema = new mongoose.Schema(
       updatedAt: 'updated_at',
     },
     collection: 'patients',
-  }
+  },
 );
 
 // ── Indexes ──────────────────────────────────────────────────
-patientSchema.index({ patient_id: 1 },        { unique: true });
-patientSchema.index({ tb_case_number: 1 },    { unique: true });
-patientSchema.index({ user_id: 1 },           { sparse: true });
+patientSchema.index({ patient_id: 1 },                          { unique: true });
+patientSchema.index({ tb_case_number: 1 },                      { unique: true });
+patientSchema.index({ user_id: 1 },                             { sparse: true });
 patientSchema.index({ barangay_id: 1 });
 patientSchema.index({ assigned_nurse_id: 1 });
 patientSchema.index({ phone_number: 1 });
-patientSchema.index({ email: 1 },             { sparse: true });
+patientSchema.index({ email: 1 },                               { sparse: true });
 patientSchema.index({ full_name: 'text' });
 patientSchema.index({ 'compliance.risk_level': 1 });
 patientSchema.index({ 'compliance.consecutive_missed_doses': 1 });
@@ -343,7 +341,10 @@ patientSchema.pre('save', function (next) {
 
 // ── Pre-save: sync compliance_percentage & doses_remaining ───
 patientSchema.pre('save', function (next) {
-  if (this.isModified('compliance.doses_taken') || this.isModified('compliance.total_doses_required')) {
+  if (
+    this.isModified('compliance.doses_taken') ||
+    this.isModified('compliance.total_doses_required')
+  ) {
     const { total_doses_required, doses_taken } = this.compliance;
     this.compliance.doses_remaining = Math.max(0, total_doses_required - doses_taken);
     this.compliance.compliance_percentage =
@@ -364,4 +365,4 @@ patientSchema.statics.getDefaulters = function () {
   return this.find({ 'compliance.risk_level': 'Defaulter', is_active: true });
 };
 
-module.exports = mongoose.model('Patient', patientSchema);
+export default mongoose.model('Patient', patientSchema);

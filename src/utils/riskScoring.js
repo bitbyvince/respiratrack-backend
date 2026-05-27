@@ -149,11 +149,10 @@ const resolveEscalationLevel = (consecutiveMissedDoses) => {
   return 0;
 };
 
-module.exports = {
+export {
   computeRiskScore,
   getRiskLabel,
   resolveEscalationLevel,
-  // exposed for unit testing
   scoreConsecutiveMissed,
   scoreSymptomFrequency,
   scoreDaysIntoTreatment,

@@ -8,4 +8,6 @@ const ROLES = {
   MANAGEMENT_ROLES: ["super_admin", "barangay_admin"],
 };
 
-module.exports = ROLES;
+// replace: module.exports = ROLES;
+export { ROLES };
+export default ROLES;

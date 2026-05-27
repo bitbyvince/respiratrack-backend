@@ -1,92 +1,65 @@
-const express = require("express");
-const router = express.Router();
-
-const controller = require("./inventory.controller");
-const { authenticate } = require("../../middleware/auth.middleware");
-const { authorizeRoles } = require("../../middleware/role.middleware");
-const { validate } = require("../../middleware/validate.middleware");
-const {
+import { Router } from "express";
+import * as controller from "./inventory.controller.js";
+import { authenticate } from "../../middleware/auth.middleware.js";
+import { authorizeRoles } from "../../middleware/role.middleware.js";
+import { validate } from "../../middleware/validate.middleware.js";
+import {
   getInventorySchema,
   adjustStockSchema,
   getLowStockSchema,
   getStockoutPredictionSchema,
-} = require("./inventory.validator");
-const { ROLES } = require("../../constants/roles");
+} from "./inventory.validator.js";
+import { ROLES } from "../../constants/roles.js";
+
+const router = Router();
 
 const ALL_STAFF = [ROLES.SUPER_ADMIN, ROLES.BARANGAY_ADMIN, ROLES.NURSE];
 const ADMIN_AND_ABOVE = [ROLES.SUPER_ADMIN, ROLES.BARANGAY_ADMIN];
-const SUPER_ADMIN_ONLY = [ROLES.SUPER_ADMIN];
 
-// ─── Routes ──────────────────────────────────────────────────────────────────
-
-/**
- * GET /inventory
- * Full paginated inventory list with optional filters.
- */
 router.get(
   "/",
   authenticate,
   authorizeRoles(ALL_STAFF),
   validate(getInventorySchema, "query"),
-  controller.listInventory,
+  controller.listInventory
 );
 
-/**
- * GET /inventory/grouped
- * Inventory grouped by barangay — super admin overview card.
- */
 router.get(
   "/grouped",
   authenticate,
   authorizeRoles(ADMIN_AND_ABOVE),
-  controller.getInventoryGrouped,
+  controller.getInventoryGrouped
 );
 
-/**
- * GET /inventory/low-stock
- * All non-OK inventory items — powers low-stock alert panel.
- */
 router.get(
   "/low-stock",
   authenticate,
   authorizeRoles(ALL_STAFF),
   validate(getLowStockSchema, "query"),
-  controller.getLowStock,
+  controller.getLowStock
 );
 
-/**
- * GET /inventory/stockout-predictions
- * Estimated stockout dates per drug — powers prediction widget.
- */
 router.get(
   "/stockout-predictions",
   authenticate,
   authorizeRoles(ALL_STAFF),
   validate(getStockoutPredictionSchema, "query"),
-  controller.getStockoutPredictions,
+  controller.getStockoutPredictions
 );
 
-/**
- * GET /inventory/:inventoryId
- * Single inventory record detail.
- */
 router.get(
   "/:inventoryId",
   authenticate,
   authorizeRoles(ALL_STAFF),
-  controller.getInventoryItem,
+  controller.getInventoryItem
 );
 
-/**
- * PATCH /inventory/:inventoryId/adjust
- * Manual stock correction — damaged, expired, recount, returned.
- */
 router.patch(
   "/:inventoryId/adjust",
   authenticate,
   authorizeRoles(ADMIN_AND_ABOVE),
   validate(adjustStockSchema),
-  controller.adjustStock,
+  controller.adjustStock
 );
 
-module.exports = router;
+export default router;

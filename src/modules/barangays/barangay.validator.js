@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const pointSchema = Joi.object({
   type: Joi.string().valid("Point").required(),
@@ -17,10 +17,10 @@ const polygonSchema = Joi.object({
     .items(
       Joi.array()
         .items(
-          Joi.array().items(Joi.number().required()).length(2).required(),
+          Joi.array().items(Joi.number().required()).length(2).required()
         )
         .min(4)
-        .required(),
+        .required()
     )
     .min(1)
     .required(),
@@ -38,7 +38,7 @@ const healthCenterSchema = Joi.object({
     }),
 });
 
-const createBarangaySchema = Joi.object({
+export const createBarangaySchema = Joi.object({
   barangay_id: Joi.string().trim().required(),
   name: Joi.string().trim().max(150).required(),
   municipality: Joi.string().trim().max(100).required(),
@@ -51,7 +51,7 @@ const createBarangaySchema = Joi.object({
   is_active: Joi.boolean().optional(),
 });
 
-const updateBarangaySchema = Joi.object({
+export const updateBarangaySchema = Joi.object({
   name: Joi.string().trim().max(150).optional(),
   municipality: Joi.string().trim().max(100).optional(),
   province: Joi.string().trim().max(100).optional(),
@@ -62,8 +62,3 @@ const updateBarangaySchema = Joi.object({
   boundary_geojson: polygonSchema.optional(),
   is_active: Joi.boolean().optional(),
 });
-
-module.exports = {
-  createBarangaySchema,
-  updateBarangaySchema,
-};

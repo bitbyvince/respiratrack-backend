@@ -21,3 +21,5 @@ export const auth = admin.auth();
 console.log("Firebase Admin initialized");
 
 export default admin;
+
+export const initFirebase = () => admin;

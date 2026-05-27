@@ -1,33 +1,24 @@
-const express = require("express");
-const router = express.Router();
-
-const controller = require("./notification.controller");
-const { authenticate } = require("../../middleware/auth.middleware");
-const { authorizeRoles } = require("../../middleware/role.middleware");
-const { validate } = require("../../middleware/validate.middleware");
-const {
+import { Router } from "express";
+import controller from "./notification.controller.js";
+import { authenticate } from "../../middleware/auth.middleware.js";
+import { authorizeRoles } from "../../middleware/role.middleware.js";
+import { validate } from "../../middleware/validate.middleware.js";
+import {
   sendNotificationSchema,
   sendBroadcastSchema,
   getNotificationsSchema,
   markReadSchema,
   registerTokenSchema,
-} = require("./notification.validator");
-const { ROLES } = require("../../constants/roles");
+} from "./notification.validator.js";
+import { ROLES } from "../../constants/roles.js";
 
-const ALL_ROLES = [
-  ROLES.SUPER_ADMIN,
-  ROLES.BARANGAY_ADMIN,
-  ROLES.NURSE,
-  ROLES.PATIENT,
-];
+const router = Router();
+
+const ALL_ROLES = [ROLES.SUPER_ADMIN, ROLES.BARANGAY_ADMIN, ROLES.NURSE, ROLES.PATIENT];
 const ADMIN_AND_ABOVE = [ROLES.SUPER_ADMIN, ROLES.BARANGAY_ADMIN];
 
 // ─── FCM Token Registration ───────────────────────────────────────────────────
 
-/**
- * POST /notifications/token
- * Mobile app registers/refreshes its FCM token after login.
- */
 router.post(
   "/token",
   authenticate,
@@ -36,10 +27,6 @@ router.post(
   controller.registerToken
 );
 
-/**
- * DELETE /notifications/token
- * Mobile app removes FCM token on logout.
- */
 router.delete(
   "/token",
   authenticate,
@@ -49,10 +36,6 @@ router.delete(
 
 // ─── Sending ──────────────────────────────────────────────────────────────────
 
-/**
- * POST /notifications/send
- * Targeted push to specific user_ids.
- */
 router.post(
   "/send",
   authenticate,
@@ -61,10 +44,6 @@ router.post(
   controller.sendNotification
 );
 
-/**
- * POST /notifications/broadcast
- * Role-scoped broadcast — all users matching given roles.
- */
 router.post(
   "/broadcast",
   authenticate,
@@ -75,10 +54,6 @@ router.post(
 
 // ─── Reading & Status ─────────────────────────────────────────────────────────
 
-/**
- * GET /notifications
- * Paginated notification log for the authenticated user.
- */
 router.get(
   "/",
   authenticate,
@@ -87,10 +62,6 @@ router.get(
   controller.listNotifications
 );
 
-/**
- * GET /notifications/unread-count
- * Badge count for the mobile app notification icon.
- */
 router.get(
   "/unread-count",
   authenticate,
@@ -98,10 +69,6 @@ router.get(
   controller.getUnreadCount
 );
 
-/**
- * PATCH /notifications/mark-read
- * Mark a specific subset of notifications as read.
- */
 router.patch(
   "/mark-read",
   authenticate,
@@ -110,10 +77,6 @@ router.patch(
   controller.markRead
 );
 
-/**
- * PATCH /notifications/mark-all-read
- * Mark all unread notifications as read in one call.
- */
 router.patch(
   "/mark-all-read",
   authenticate,
@@ -121,4 +84,4 @@ router.patch(
   controller.markAllRead
 );
 
-module.exports = router;
+export default router;

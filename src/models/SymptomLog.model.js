@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const symptomEntrySchema = new mongoose.Schema(
   {
@@ -12,7 +12,7 @@ const symptomEntrySchema = new mongoose.Schema(
     },
     severity: { type: Number, enum: [1, 2, 3], required: true }, // 1=Mild | 2=Moderate | 3=Severe
   },
-  { _id: false }
+  { _id: false },
 );
 
 const symptomLogSchema = new mongoose.Schema(
@@ -27,11 +27,11 @@ const symptomLogSchema = new mongoose.Schema(
     reviewed_by:     { type: String, default: null },
     reviewed_at:     { type: Date,   default: null },
   },
-  { timestamps: { createdAt: 'created_at', updatedAt: false } }
+  { timestamps: { createdAt: 'created_at', updatedAt: false } },
 );
 
 symptomLogSchema.index({ patient_id: 1, logged_at: -1 });
 symptomLogSchema.index({ tb_case_number: 1 });
 symptomLogSchema.index({ barangay_id: 1 });
 
-module.exports = mongoose.model('SymptomLog', symptomLogSchema);
+export default mongoose.model('SymptomLog', symptomLogSchema);

@@ -1,77 +1,75 @@
-const express = require("express");
-const router = express.Router();
-const controller = require("./appointment.controller");
-const { authenticate } = require("../../middleware/auth.middleware");
-const { authorize } = require("../../middleware/role.middleware");
-const { validate } = require("../../middleware/validate.middleware");
-const {
-  createAppointmentSchema,
-  updateAppointmentSchema,
-} = require("./appointment.validator");
+import { Router } from 'express';
+import * as controller from './appointment.controller.js';
+import { authenticate } from '../../middleware/auth.middleware.js';
+import { authorize } from '../../middleware/role.middleware.js';
+import { validate } from '../../middleware/validate.middleware.js';
+import { createAppointmentSchema, updateAppointmentSchema } from './appointment.validator.js';
+
+const router = Router();
 
 router.post(
-  "/",
+  '/',
   authenticate,
-  authorize("patient", "nurse"),
+  authorize('patient', 'nurse'),
   validate(createAppointmentSchema),
   controller.createAppointment,
 );
 
 router.get(
-  "/",
+  '/',
   authenticate,
-  authorize("nurse", "barangay_admin", "super_admin"),
+  authorize('nurse', 'barangay_admin', 'super_admin'),
   controller.getAppointments,
 );
 
 router.get(
-  "/:appointmentId",
+  '/:appointmentId',
   authenticate,
-  authorize("nurse", "barangay_admin", "super_admin", "patient"),
+  authorize('nurse', 'barangay_admin', 'super_admin', 'patient'),
   controller.getAppointment,
 );
 
 router.get(
-  "/patient/:patientId",
+  '/patient/:patientId',
   authenticate,
-  authorize("nurse", "barangay_admin", "super_admin", "patient"),
+  authorize('nurse', 'barangay_admin', 'super_admin', 'patient'),
   controller.getPatientAppointments,
 );
 
 router.get(
-  "/barangay/:barangayId",
+  '/barangay/:barangayId',
   authenticate,
-  authorize("nurse", "barangay_admin", "super_admin"),
+  authorize('nurse', 'barangay_admin', 'super_admin'),
   controller.getBarangayAppointments,
 );
 
 router.patch(
-  "/:appointmentId/confirm",
+  '/:appointmentId/confirm',
   authenticate,
-  authorize("nurse", "barangay_admin"),
+  authorize('nurse', 'barangay_admin'),
   controller.confirmAppointment,
 );
 
 router.patch(
-  "/:appointmentId/complete",
+  '/:appointmentId/complete',
   authenticate,
-  authorize("nurse", "barangay_admin"),
+  authorize('nurse', 'barangay_admin'),
   controller.completeAppointment,
 );
 
 router.patch(
-  "/:appointmentId/cancel",
+  '/:appointmentId/cancel',
   authenticate,
-  authorize("nurse", "barangay_admin", "super_admin", "patient"),
+  authorize('nurse', 'barangay_admin', 'super_admin', 'patient'),
   controller.cancelAppointment,
 );
 
 router.patch(
-  "/:appointmentId",
+  '/:appointmentId',
   authenticate,
-  authorize("nurse", "barangay_admin"),
+  authorize('nurse', 'barangay_admin'),
   validate(updateAppointmentSchema),
   controller.updateAppointment,
 );
 
-module.exports = router;
+export default router;

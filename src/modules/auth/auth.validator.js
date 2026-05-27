@@ -1,7 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-// ── STAFF LOGIN ──────────────────────────────────────────
-const loginSchema = Joi.object({
+export const loginSchema = Joi.object({
   email: Joi.string().email().required().messages({
     "string.email": "Please provide a valid email address.",
     "any.required": "Email is required.",
@@ -12,14 +11,9 @@ const loginSchema = Joi.object({
   }),
 });
 
-// ── PATIENT LOGIN ────────────────────────────────────────
-// identifier = tb_case_number (PHNT-137-071-S26-XXXX)
-//            | phone number (+639XXXXXXXXX)
-//            | email
-const patientLoginSchema = Joi.object({
+export const patientLoginSchema = Joi.object({
   identifier: Joi.string().required().messages({
-    "any.required":
-      "Please provide your TB case number, phone number, or email.",
+    "any.required": "Please provide your TB case number, phone number, or email.",
   }),
   pin: Joi.string()
     .length(4)
@@ -32,15 +26,13 @@ const patientLoginSchema = Joi.object({
     }),
 });
 
-// ── REFRESH TOKEN ────────────────────────────────────────
-const refreshTokenSchema = Joi.object({
+export const refreshTokenSchema = Joi.object({
   refreshToken: Joi.string().required().messages({
     "any.required": "Refresh token is required.",
   }),
 });
 
-// ── CHANGE PASSWORD ──────────────────────────────────────
-const changePasswordSchema = Joi.object({
+export const changePasswordSchema = Joi.object({
   current_password: Joi.string().required().messages({
     "any.required": "Current password is required.",
   }),
@@ -63,8 +55,7 @@ const changePasswordSchema = Joi.object({
     }),
 });
 
-// ── CHANGE PIN ───────────────────────────────────────────
-const changePinSchema = Joi.object({
+export const changePinSchema = Joi.object({
   current_pin: Joi.string()
     .length(4)
     .pattern(/^\d{4}$/)
@@ -89,41 +80,25 @@ const changePinSchema = Joi.object({
   }),
 });
 
-// ── REQUEST OTP ──────────────────────────────────────────
-const requestOtpSchema = Joi.object({
+export const requestOtpSchema = Joi.object({
   phone_number: Joi.string()
     .pattern(/^\+639\d{9}$/)
     .required()
     .messages({
-      "string.pattern.base":
-        "Phone number must be in the format +639XXXXXXXXX.",
+      "string.pattern.base": "Phone number must be in the format +639XXXXXXXXX.",
       "any.required": "Phone number is required.",
     }),
 });
 
-// ── VERIFY OTP ───────────────────────────────────────────
-// The client sends the Firebase ID token after completing
-// phone verification on the Firebase client SDK
-const verifyOtpSchema = Joi.object({
+export const verifyOtpSchema = Joi.object({
   phone_number: Joi.string()
     .pattern(/^\+639\d{9}$/)
     .required()
     .messages({
-      "string.pattern.base":
-        "Phone number must be in the format +639XXXXXXXXX.",
+      "string.pattern.base": "Phone number must be in the format +639XXXXXXXXX.",
       "any.required": "Phone number is required.",
     }),
   otp_code: Joi.string().required().messages({
     "any.required": "Firebase ID token is required.",
   }),
 });
-
-module.exports = {
-  loginSchema,
-  patientLoginSchema,
-  refreshTokenSchema,
-  changePasswordSchema,
-  changePinSchema,
-  requestOtpSchema,
-  verifyOtpSchema,
-};

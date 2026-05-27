@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const stockAllocationSchema = new mongoose.Schema(
   {
@@ -17,11 +17,11 @@ const stockAllocationSchema = new mongoose.Schema(
     notes:        { type: String, default: '' },
     allocated_at: { type: Date,   required: true, default: Date.now },
   },
-  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
+  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } },
 );
 
 stockAllocationSchema.index({ barangay_id: 1, allocated_at: -1 });
 stockAllocationSchema.index({ allocated_by: 1 });
 stockAllocationSchema.index({ drug_name: 1 });
 
-module.exports = mongoose.model('StockAllocation', stockAllocationSchema);
+export default mongoose.model('StockAllocation', stockAllocationSchema);

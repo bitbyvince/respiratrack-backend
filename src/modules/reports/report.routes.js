@@ -1,31 +1,24 @@
-const express = require("express");
-const router = express.Router();
-
-const controller = require("./report.controller");
-const { authenticate } = require("../../middleware/auth.middleware");
-const { authorizeRoles } = require("../../middleware/role.middleware");
-const { validate } = require("../../middleware/validate.middleware");
-const {
+import { Router } from "express";
+import controller from "./report.controller.js";
+import { authenticate } from "../../middleware/auth.middleware.js";
+import { authorizeRoles } from "../../middleware/role.middleware.js";
+import { validate } from "../../middleware/validate.middleware.js";
+import {
   getPatientReportSchema,
   getBarangayReportSchema,
   getCityReportSchema,
   getComplianceTrendSchema,
   getInventoryReportSchema,
   getTreatmentOutcomeSchema,
-} = require("./report.validator");
-const { ROLES } = require("../../constants/roles");
+} from "./report.validator.js";
+import { ROLES } from "../../constants/roles.js";
+
+const router = Router();
 
 const ALL_STAFF = [ROLES.SUPER_ADMIN, ROLES.BARANGAY_ADMIN, ROLES.NURSE];
 const ADMIN_AND_ABOVE = [ROLES.SUPER_ADMIN, ROLES.BARANGAY_ADMIN];
 const SUPER_ADMIN_ONLY = [ROLES.SUPER_ADMIN];
 
-// ─── Routes ──────────────────────────────────────────────────────────────────
-
-/**
- * GET /reports/patient
- * Individual patient report — all linked records in one payload.
- * Supports JSON and PDF export.
- */
 router.get(
   "/patient",
   authenticate,
@@ -34,11 +27,6 @@ router.get(
   controller.getPatientReport
 );
 
-/**
- * GET /reports/barangay
- * Barangay aggregate report — patient breakdown, trends, outcomes, stock.
- * Supports JSON and PDF export.
- */
 router.get(
   "/barangay",
   authenticate,
@@ -47,12 +35,6 @@ router.get(
   controller.getBarangayReport
 );
 
-/**
- * GET /reports/city
- * City-wide aggregate report across all barangays.
- * For NTP quarterly/annual submission — super admin only.
- * Supports JSON and PDF export.
- */
 router.get(
   "/city",
   authenticate,
@@ -61,10 +43,6 @@ router.get(
   controller.getCityReport
 );
 
-/**
- * GET /reports/compliance-trend
- * Time-series compliance snapshots for dashboard trend charts.
- */
 router.get(
   "/compliance-trend",
   authenticate,
@@ -73,11 +51,6 @@ router.get(
   controller.getComplianceTrend
 );
 
-/**
- * GET /reports/inventory
- * Current stock levels report — per barangay or city-wide.
- * Supports JSON and PDF export.
- */
 router.get(
   "/inventory",
   authenticate,
@@ -86,11 +59,6 @@ router.get(
   controller.getInventoryReport
 );
 
-/**
- * GET /reports/treatment-outcomes
- * Treatment outcome breakdown in NTP reporting format.
- * Supports JSON and PDF export.
- */
 router.get(
   "/treatment-outcomes",
   authenticate,
@@ -99,4 +67,4 @@ router.get(
   controller.getTreatmentOutcomes
 );
 
-module.exports = router;
+export default router;

@@ -1,11 +1,12 @@
-const service = require("./compliance.service");
+import * as service from "./compliance.service.js";
 
-exports.getComplianceSnapshots = async (req, res) => {
+export async function getComplianceSnapshots(req, res) {
   try {
     const { page = 1, limit = 20, barangay_id, period, snapshot_date } = req.query;
+
     const result = await service.getComplianceSnapshots(
       { barangay_id, period, snapshot_date },
-      { page, limit },
+      { page, limit }
     );
 
     return res.status(200).json({
@@ -19,9 +20,9 @@ exports.getComplianceSnapshots = async (req, res) => {
       message: err.message || "Failed to retrieve compliance snapshots.",
     });
   }
-};
+}
 
-exports.getLatestSnapshots = async (req, res) => {
+export async function getLatestSnapshots(req, res) {
   try {
     const { period } = req.query;
     const snapshots = await service.getLatestSnapshots({ period });
@@ -37,9 +38,9 @@ exports.getLatestSnapshots = async (req, res) => {
       message: err.message || "Failed to retrieve latest snapshots.",
     });
   }
-};
+}
 
-exports.getBarangaySnapshot = async (req, res) => {
+export async function getBarangaySnapshot(req, res) {
   try {
     const { barangayId } = req.params;
     const { period } = req.query;
@@ -56,9 +57,9 @@ exports.getBarangaySnapshot = async (req, res) => {
       message: err.message || "Snapshot not found.",
     });
   }
-};
+}
 
-exports.getComplianceSummary = async (req, res) => {
+export async function getComplianceSummary(req, res) {
   try {
     const { barangay_id, period, snapshot_date } = req.query;
     const summary = await service.getComplianceSummary({ barangay_id, period, snapshot_date });
@@ -74,4 +75,4 @@ exports.getComplianceSummary = async (req, res) => {
       message: err.message || "Failed to retrieve compliance summary.",
     });
   }
-};
+}

@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 // ============================================================
 // ComplianceSnapshot Model
@@ -83,16 +83,13 @@ const complianceSnapshotSchema = new mongoose.Schema(
       updatedAt: false, // Snapshots are immutable once created
     },
     collection: 'compliance_snapshots',
-  }
+  },
 );
 
 // ── Indexes ─────────────────────────────────────────────────
 complianceSnapshotSchema.index({ barangay_id: 1, snapshot_date: -1 });
 complianceSnapshotSchema.index({ snapshot_date: -1 });
-complianceSnapshotSchema.index(
-  { barangay_id: 1, snapshot_date: 1 },
-  { unique: true }
-);
+complianceSnapshotSchema.index({ barangay_id: 1, snapshot_date: 1 }, { unique: true });
 
 // ── Virtual: risk_level ──────────────────────────────────────
 complianceSnapshotSchema.virtual('risk_level').get(function () {
@@ -115,4 +112,4 @@ complianceSnapshotSchema.statics.getRange = function (barangay_id, startDate, en
   }).sort({ snapshot_date: 1 });
 };
 
-module.exports = mongoose.model('ComplianceSnapshot', complianceSnapshotSchema);
+export default mongoose.model('ComplianceSnapshot', complianceSnapshotSchema);

@@ -1,6 +1,4 @@
-medication - log.validator.js;
-
-const Joi = require("joi");
+import Joi from "joi";
 
 const medicineEntrySchema = Joi.object({
   drug_name: Joi.string().required(),
@@ -11,14 +9,14 @@ const medicineEntrySchema = Joi.object({
   taken_at: Joi.date().allow(null).optional(),
 });
 
-exports.logMedicationSchema = Joi.object({
+export const logMedicationSchema = Joi.object({
   patient_id: Joi.string().required(),
   log_date: Joi.date().optional(),
   medicines: Joi.array().items(medicineEntrySchema).min(1).required(),
   notes: Joi.string().allow("").optional(),
 });
 
-exports.updateMedicationLogSchema = Joi.object({
+export const updateMedicationLogSchema = Joi.object({
   medicines: Joi.array().items(medicineEntrySchema).min(1).optional(),
   notes: Joi.string().allow("").optional(),
 });

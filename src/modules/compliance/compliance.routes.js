@@ -1,17 +1,18 @@
-const express = require("express");
-const router = express.Router();
-const controller = require("./compliance.controller");
-const { authenticate } = require("../../middleware/auth.middleware");
-const {
+import { Router } from "express";
+import * as controller from "./compliance.controller.js";
+import { authenticate } from "../../middleware/auth.middleware.js";
+import {
   authorizeStaff,
   authorizeAdmin,
   enforceBarangayScope,
-} = require("../../middleware/role.middleware");
-const { validate } = require("../../middleware/validate.middleware");
-const {
+} from "../../middleware/role.middleware.js";
+import { validate } from "../../middleware/validate.middleware.js";
+import {
   listComplianceSchema,
   snapshotParamsSchema,
-} = require("./compliance.validator");
+} from "./compliance.validator.js";
+
+const router = Router();
 
 router.get(
   "/",
@@ -19,7 +20,7 @@ router.get(
   authorizeStaff,
   enforceBarangayScope,
   validate(listComplianceSchema, "query"),
-  controller.getComplianceSnapshots,
+  controller.getComplianceSnapshots
 );
 
 router.get(
@@ -28,7 +29,7 @@ router.get(
   authorizeStaff,
   enforceBarangayScope,
   validate(listComplianceSchema, "query"),
-  controller.getLatestSnapshots,
+  controller.getLatestSnapshots
 );
 
 router.get(
@@ -36,7 +37,7 @@ router.get(
   authenticate,
   authorizeAdmin,
   validate(listComplianceSchema, "query"),
-  controller.getComplianceSummary,
+  controller.getComplianceSummary
 );
 
 router.get(
@@ -46,7 +47,7 @@ router.get(
   enforceBarangayScope,
   validate(snapshotParamsSchema, "params"),
   validate(listComplianceSchema, "query"),
-  controller.getBarangaySnapshot,
+  controller.getBarangaySnapshot
 );
 
-module.exports = router;
+export default router;

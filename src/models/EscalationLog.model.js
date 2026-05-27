@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 // ============================================================
 // EscalationLog Model
@@ -16,7 +16,7 @@ const notifiedUserSchema = new mongoose.Schema(
     role:        { type: String, required: true, enum: ['nurse', 'barangay_admin', 'super_admin'] },
     notified_at: { type: Date,   required: true, default: Date.now },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const escalationLogSchema = new mongoose.Schema(
@@ -130,7 +130,7 @@ const escalationLogSchema = new mongoose.Schema(
       updatedAt: false, // Immutable log — use resolved/acknowledged fields for state
     },
     collection: 'escalation_logs',
-  }
+  },
 );
 
 // ── Indexes ──────────────────────────────────────────────────
@@ -166,4 +166,4 @@ escalationLogSchema.methods.resolve = function (notes = '') {
   return this.save();
 };
 
-module.exports = mongoose.model('EscalationLog', escalationLogSchema);
+export default mongoose.model('EscalationLog', escalationLogSchema);

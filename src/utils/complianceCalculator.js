@@ -72,9 +72,10 @@ const computeComplianceSummary = ({
   };
 };
 
-module.exports = {
+export {
   calculateCompliancePercentage,
   getRiskLevel,
   getAdherenceLabel,
   computeComplianceSummary,
+  computeComplianceSummary as computeCompliance, // alias for patient.service.js
 };

@@ -1,25 +1,26 @@
-const express = require("express");
-const router = express.Router();
-const controller = require("./dispensing.controller");
-const { authenticate } = require("../../middleware/auth.middleware");
-const {
+import { Router } from "express";
+import * as controller from "./dispensing.controller.js";
+import { authenticate } from "../../middleware/auth.middleware.js";
+import {
   authorizeStaff,
   authorizeStockDispensing,
   enforceBarangayScope,
-} = require("../../middleware/role.middleware");
-const { validate } = require("../../middleware/validate.middleware");
-const {
+} from "../../middleware/role.middleware.js";
+import { validate } from "../../middleware/validate.middleware.js";
+import {
   createDispensingSchema,
   listDispensingSchema,
   dispensingIdParamsSchema,
-} = require("./dispensing.validator");
+} from "./dispensing.validator.js";
+
+const router = Router();
 
 router.post(
   "/",
   authenticate,
   authorizeStockDispensing,
   validate(createDispensingSchema),
-  controller.createDispensingRecord,
+  controller.createDispensingRecord
 );
 
 router.get(
@@ -28,7 +29,7 @@ router.get(
   authorizeStaff,
   enforceBarangayScope,
   validate(listDispensingSchema, "query"),
-  controller.getDispensingRecords,
+  controller.getDispensingRecords
 );
 
 router.get(
@@ -37,7 +38,7 @@ router.get(
   authorizeStaff,
   enforceBarangayScope,
   validate(dispensingIdParamsSchema, "params"),
-  controller.getDispensingRecord,
+  controller.getDispensingRecord
 );
 
 router.get(
@@ -46,7 +47,7 @@ router.get(
   authorizeStaff,
   enforceBarangayScope,
   validate(listDispensingSchema, "query"),
-  controller.getPatientDispensingRecords,
+  controller.getPatientDispensingRecords
 );
 
 router.get(
@@ -55,7 +56,7 @@ router.get(
   authorizeStaff,
   enforceBarangayScope,
   validate(listDispensingSchema, "query"),
-  controller.getBarangayDispensingRecords,
+  controller.getBarangayDispensingRecords
 );
 
-module.exports = router;
+export default router;

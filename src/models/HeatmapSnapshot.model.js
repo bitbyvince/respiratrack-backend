@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 // ============================================================
 // HeatmapSnapshot Model
@@ -14,7 +14,7 @@ const escalationCountsSchema = new mongoose.Schema(
     level_2: { type: Number, default: 0, min: 0 },
     level_3: { type: Number, default: 0, min: 0 },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const heatmapSnapshotSchema = new mongoose.Schema(
@@ -155,7 +155,7 @@ const heatmapSnapshotSchema = new mongoose.Schema(
       updatedAt: false, // Snapshots are immutable
     },
     collection: 'heatmap_snapshots',
-  }
+  },
 );
 
 // ── Indexes ──────────────────────────────────────────────────
@@ -163,12 +163,7 @@ heatmapSnapshotSchema.index({ barangay_id: 1, period: 1, snapshot_date: -1 });
 heatmapSnapshotSchema.index({ snapshot_date: -1 });
 heatmapSnapshotSchema.index({ coordinates: '2dsphere' });
 heatmapSnapshotSchema.index({ period: 1, snapshot_date: -1 });
-
-// Prevent duplicate snapshot for same barangay + period + date
-heatmapSnapshotSchema.index(
-  { barangay_id: 1, period: 1, snapshot_date: 1 },
-  { unique: true }
-);
+heatmapSnapshotSchema.index({ barangay_id: 1, period: 1, snapshot_date: 1 }, { unique: true });
 
 // ── Static: latest snapshot per period for all barangays ────
 heatmapSnapshotSchema.statics.getLatestAll = function (period = 'monthly') {
@@ -185,4 +180,4 @@ heatmapSnapshotSchema.statics.getLatestByBarangay = function (barangay_id, perio
   return this.findOne({ barangay_id, period }).sort({ snapshot_date: -1 });
 };
 
-module.exports = mongoose.model('HeatmapSnapshot', heatmapSnapshotSchema);
+export default mongoose.model('HeatmapSnapshot', heatmapSnapshotSchema);

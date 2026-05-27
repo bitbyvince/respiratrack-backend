@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 // ============================================================
 // MedicationLog Model
@@ -46,7 +46,7 @@ const medicineEntrySchema = new mongoose.Schema(
       // null if status is Missed
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const medicationLogSchema = new mongoose.Schema(
@@ -143,15 +143,11 @@ const medicationLogSchema = new mongoose.Schema(
       updatedAt: false, // Logs are immutable once submitted
     },
     collection: 'medication_logs',
-  }
+  },
 );
 
 // ── Indexes ──────────────────────────────────────────────────
-// One log per patient per day — enforced
-medicationLogSchema.index(
-  { patient_id: 1, log_date: 1 },
-  { unique: true }
-);
+medicationLogSchema.index({ patient_id: 1, log_date: 1 }, { unique: true });
 medicationLogSchema.index({ patient_id: 1, log_date: -1 });
 medicationLogSchema.index({ tb_case_number: 1 });
 medicationLogSchema.index({ barangay_id: 1 });
@@ -194,4 +190,4 @@ medicationLogSchema.statics.getConsecutiveMissed = async function (patient_id) {
   return count;
 };
 
-module.exports = mongoose.model('MedicationLog', medicationLogSchema);
+export default mongoose.model('MedicationLog', medicationLogSchema);

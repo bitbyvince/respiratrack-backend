@@ -162,3 +162,5 @@ export const softAuthenticate = async (req, res, next) => {
     next();
   }
 };
+
+export const authMiddleware = authenticate;

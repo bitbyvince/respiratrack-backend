@@ -1,5 +1,5 @@
-const Alert = require('../../models/Alert.model');
-const Patient = require('../../models/Patient.model');
+import Alert from '../../models/Alert.model.js';
+import Patient from '../../models/Patient.model.js';
 
 const VALID_ALERT_TYPES = [
   'Missed Dose',
@@ -12,12 +12,12 @@ const VALID_ALERT_TYPES = [
 ];
 
 const VALID_SEVERITIES = ['Info', 'Warning', 'Critical'];
-const VALID_STATUSES = ['Active', 'Resolved', 'Acknowledged'];
+const VALID_STATUSES   = ['Active', 'Resolved', 'Acknowledged'];
 
 const ROLE_ALERT_MAP = {
-  nurse: ['Missed Dose', 'Escalation L1', 'Escalation L2', 'Escalation L3', 'Sputum Test Due', 'Appointment Reminder'],
+  nurse:          ['Missed Dose', 'Escalation L1', 'Escalation L2', 'Escalation L3', 'Sputum Test Due', 'Appointment Reminder'],
   barangay_admin: ['Escalation L2', 'Escalation L3', 'Low Stock', 'Sputum Test Due'],
-  super_admin: ['Escalation L3', 'Low Stock', 'Missed Dose', 'Escalation L1', 'Escalation L2', 'Sputum Test Due', 'Appointment Reminder'],
+  super_admin:    ['Escalation L3', 'Low Stock', 'Missed Dose', 'Escalation L1', 'Escalation L2', 'Sputum Test Due', 'Appointment Reminder'],
 };
 
 const generateAlertId = async () => {
@@ -25,7 +25,7 @@ const generateAlertId = async () => {
   return `ALT-${String(count + 1).padStart(4, '0')}`;
 };
 
-exports.createAlert = async (data) => {
+export const createAlert = async (data) => {
   const {
     patient_id,
     tb_case_number,
@@ -48,36 +48,32 @@ exports.createAlert = async (data) => {
   const alertId = await generateAlertId();
 
   const alert = await Alert.create({
-    alert_id: alertId,
-    patient_id: patient_id || null,
-    tb_case_number: tb_case_number || null,
+    alert_id:         alertId,
+    patient_id:       patient_id || null,
+    tb_case_number:   tb_case_number || null,
     barangay_id,
     alert_type,
     escalation_level: escalation_level || 0,
     message,
     severity,
-    status: 'Active',
-    target_roles: target_roles || [],
-    created_at: new Date(),
-    resolved_at: null,
-    resolved_by: null,
+    status:           'Active',
+    target_roles:     target_roles || [],
+    created_at:       new Date(),
+    resolved_at:      null,
+    resolved_by:      null,
   });
 
   return alert;
 };
 
-exports.getAlerts = async (filters, { page, limit }) => {
+export const getAlerts = async (filters, { page, limit }) => {
   const { status, severity, alert_type, role } = filters;
 
   const query = {};
-
-  if (status) query.status = status;
-  if (severity) query.severity = severity;
+  if (status)     query.status     = status;
+  if (severity)   query.severity   = severity;
   if (alert_type) query.alert_type = alert_type;
-
-  if (role && ROLE_ALERT_MAP[role]) {
-    query.target_roles = { $in: [role] };
-  }
+  if (role && ROLE_ALERT_MAP[role]) query.target_roles = { $in: [role] };
 
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const [alerts, total] = await Promise.all([
@@ -88,34 +84,32 @@ exports.getAlerts = async (filters, { page, limit }) => {
   return { alerts, total, page: parseInt(page), limit: parseInt(limit) };
 };
 
-exports.getAlert = async (alertId) => {
+export const getAlert = async (alertId) => {
   const alert = await Alert.findOne({ alert_id: alertId });
   if (!alert) throw new Error('Alert not found.');
   return alert;
 };
 
-exports.getBarangayAlerts = async (barangayId, { status, severity, alert_type }) => {
+export const getBarangayAlerts = async (barangayId, { status, severity, alert_type }) => {
   const query = { barangay_id: barangayId };
-
-  if (status) query.status = status;
-  if (severity) query.severity = severity;
+  if (status)     query.status     = status;
+  if (severity)   query.severity   = severity;
   if (alert_type) query.alert_type = alert_type;
-
   return await Alert.find(query).sort({ created_at: -1 });
 };
 
-exports.getPatientAlerts = async (patientId, { status }) => {
+export const getPatientAlerts = async (patientId, { status }) => {
   const query = { patient_id: patientId };
   if (status) query.status = status;
   return await Alert.find(query).sort({ created_at: -1 });
 };
 
-exports.resolveAlert = async (alertId, user) => {
+export const resolveAlert = async (alertId, user) => {
   const alert = await Alert.findOne({ alert_id: alertId });
   if (!alert) throw new Error('Alert not found.');
   if (alert.status === 'Resolved') throw new Error('Alert is already resolved.');
 
-  alert.status = 'Resolved';
+  alert.status      = 'Resolved';
   alert.resolved_at = new Date();
   alert.resolved_by = user.user_id;
   await alert.save();
@@ -126,7 +120,7 @@ exports.resolveAlert = async (alertId, user) => {
       const unresolvedEscalations = await Alert.countDocuments({
         patient_id: alert.patient_id,
         alert_type: { $in: ['Escalation L1', 'Escalation L2', 'Escalation L3'] },
-        status: { $ne: 'Resolved' },
+        status:     { $ne: 'Resolved' },
       });
 
       if (unresolvedEscalations === 0 && patient.escalation.level > 0) {
@@ -134,12 +128,12 @@ exports.resolveAlert = async (alertId, user) => {
           { patient_id: alert.patient_id },
           {
             $set: {
-              'escalation.level': 0,
+              'escalation.level':           0,
               'escalation.acknowledged_by': user.user_id,
               'escalation.acknowledged_at': new Date(),
-              updated_at: new Date(),
+              updated_at:                   new Date(),
             },
-          }
+          },
         );
       }
     }
@@ -148,10 +142,10 @@ exports.resolveAlert = async (alertId, user) => {
   return alert;
 };
 
-exports.acknowledgeAlert = async (alertId, user) => {
+export const acknowledgeAlert = async (alertId, user) => {
   const alert = await Alert.findOne({ alert_id: alertId });
   if (!alert) throw new Error('Alert not found.');
-  if (alert.status === 'Resolved') throw new Error('Cannot acknowledge a resolved alert.');
+  if (alert.status === 'Resolved')     throw new Error('Cannot acknowledge a resolved alert.');
   if (alert.status === 'Acknowledged') throw new Error('Alert is already acknowledged.');
 
   alert.status = 'Acknowledged';
@@ -160,7 +154,7 @@ exports.acknowledgeAlert = async (alertId, user) => {
   return alert;
 };
 
-exports.createSystemAlert = async ({
+export const createSystemAlert = async ({
   patient_id,
   tb_case_number,
   barangay_id,
@@ -178,7 +172,7 @@ exports.createSystemAlert = async ({
 
   if (existing) return existing;
 
-  return await exports.createAlert({
+  return await createAlert({
     patient_id,
     tb_case_number,
     barangay_id,

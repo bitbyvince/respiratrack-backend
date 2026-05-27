@@ -188,3 +188,43 @@ export const generateBarangayReportPdf = async (barangay, patients = []) => {
       );
   });
 };
+
+// ─── Aliases & Additional Generators ─────────────────────────────────────────
+
+export const exportPatientListPdf = generatePatientPdf;
+export const generatePatientPDF = generatePatientPdf;
+export const generateBarangayPDF = generateBarangayReportPdf;
+
+export const generateCityPDF = async (data) =>
+  buildPdfBuffer((doc) => {
+    drawPageHeader(doc, "City Report — Pasig City");
+    drawSectionHeader(doc, "Summary");
+    drawRow(doc, "Total Active Patients:", data.total_active_patients);
+    drawRow(doc, "Compliant:", data.risk_summary?.compliant);
+    drawRow(doc, "At Risk:", data.risk_summary?.at_risk);
+    drawRow(doc, "Defaulters:", data.risk_summary?.defaulter);
+    drawSectionHeader(doc, "Barangay Breakdown");
+    (data.barangay_breakdown || []).forEach((brgy) => {
+      drawRow(doc, brgy.name, `${brgy.total_active} patients — ${brgy.compliance_percentage}% compliant`);
+    });
+  });
+
+export const generateInventoryPDF = async (data) =>
+  buildPdfBuffer((doc) => {
+    drawPageHeader(doc, "Inventory Report");
+    (data.grouped_by_barangay || []).forEach((brgy) => {
+      drawSectionHeader(doc, `Barangay: ${brgy.barangay_id}`);
+      (brgy.drugs || []).forEach((drug) => {
+        drawRow(doc, `${drug.drug_name} ${drug.strength}:`, `${drug.remaining_stock} remaining — ${drug.stock_status}`);
+      });
+    });
+  });
+
+export const generateOutcomePDF = async (data) =>
+  buildPdfBuffer((doc) => {
+    drawPageHeader(doc, "Treatment Outcome Report");
+    drawSectionHeader(doc, "Outcome Summary");
+    Object.entries(data.outcome_summary || {}).forEach(([status, val]) => {
+      drawRow(doc, status, `${val.count} (${val.percentage}%)`);
+    });
+  });

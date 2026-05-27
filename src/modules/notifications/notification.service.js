@@ -1,19 +1,10 @@
-const admin = require("../../config/firebase");
-const User = require("../../models/User.model");
-const Notification = require("../../models/Notification.model");
-const logger = require("../../utils/logger");
+import admin from "../../config/firebase.js";
+import User from "../../models/User.model.js";
+import Notification from "../../models/Notification.model.js";
+import logger from "../../utils/logger.js";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/**
- * Sends a single FCM push notification to one FCM token.
- * Returns a result object — never throws — so callers can use
- * Promise.allSettled without wrapping each call individually.
- *
- * @param {string} fcmToken
- * @param {object} payload  - { title, body, data }
- * @returns {{ success: boolean, token: string, error?: string }}
- */
 async function sendToToken(fcmToken, payload) {
   try {
     await admin.messaging().send({
@@ -47,36 +38,18 @@ async function sendToToken(fcmToken, payload) {
   }
 }
 
-/**
- * FCM data payloads must be string:string — coerce all values.
- */
 function sanitizeData(data) {
   return Object.fromEntries(
     Object.entries(data).map(([k, v]) => [k, String(v)])
   );
 }
 
-/**
- * Generates a unique notification_id in the format NOTIF-XXXXXXXX.
- */
 function generateNotificationId() {
   const rand = Math.random().toString(36).substring(2, 10).toUpperCase();
   return `NOTIF-${rand}`;
 }
 
-/**
- * Persists a notification log record to MongoDB.
- * Called after every send attempt regardless of FCM success/failure.
- */
-async function logNotification({
-  user_id,
-  title,
-  body,
-  type,
-  data,
-  fcm_success,
-  fcm_error,
-}) {
+async function logNotification({ user_id, title, body, type, data, fcm_success, fcm_error }) {
   return Notification.create({
     notification_id: generateNotificationId(),
     user_id,
@@ -94,14 +67,7 @@ async function logNotification({
 
 // ─── Service Functions ────────────────────────────────────────────────────────
 
-/**
- * Registers or updates an FCM token for the authenticated user.
- * Called by the mobile app on login or token refresh.
- *
- * @param {string} userId
- * @param {string} fcmToken
- */
-async function registerFcmToken(userId, fcmToken) {
+export async function registerFcmToken(userId, fcmToken) {
   const user = await User.findOneAndUpdate(
     { user_id: userId },
     { $set: { fcm_token: fcmToken, updated_at: new Date() } },
@@ -112,31 +78,14 @@ async function registerFcmToken(userId, fcmToken) {
   return { user_id: userId, fcm_token: fcmToken };
 }
 
-/**
- * Removes the FCM token for a user on logout.
- * Prevents push notifications from reaching signed-out devices.
- *
- * @param {string} userId
- */
-async function removeFcmToken(userId) {
+export async function removeFcmToken(userId) {
   await User.updateOne(
     { user_id: userId },
     { $unset: { fcm_token: "" }, $set: { updated_at: new Date() } }
   );
 }
 
-/**
- * Sends push notifications to a specific list of user_ids.
- * Looks up FCM tokens, fires sends in parallel, logs each result.
- *
- * @param {string[]} userIds
- * @param {string}   title
- * @param {string}   body
- * @param {string}   type
- * @param {object}   data     - arbitrary key/value pairs for the app
- * @returns {{ sent: number, failed: number, skipped: number }}
- */
-async function sendToUsers(userIds, { title, body, type = "GENERAL", data = {} }) {
+export async function sendToUsers(userIds, { title, body, type = "GENERAL", data = {} }) {
   const users = await User.find({
     user_id: { $in: userIds },
     is_active: true,
@@ -145,7 +94,6 @@ async function sendToUsers(userIds, { title, body, type = "GENERAL", data = {} }
   const withToken = users.filter((u) => u.fcm_token);
   const withoutToken = users.filter((u) => !u.fcm_token);
 
-  // Fire all FCM sends in parallel
   const sendResults = await Promise.allSettled(
     withToken.map((u) =>
       sendToToken(u.fcm_token, { title, body, data })
@@ -153,7 +101,6 @@ async function sendToUsers(userIds, { title, body, type = "GENERAL", data = {} }
     )
   );
 
-  // Log every attempt to MongoDB (regardless of FCM outcome)
   await Promise.allSettled(
     sendResults.map((r) => {
       const val = r.value ?? {};
@@ -169,7 +116,6 @@ async function sendToUsers(userIds, { title, body, type = "GENERAL", data = {} }
     })
   );
 
-  // Log skipped users (no token registered)
   if (withoutToken.length > 0) {
     logger.info(
       `Notification skipped — no FCM token for users: ${withoutToken
@@ -185,33 +131,12 @@ async function sendToUsers(userIds, { title, body, type = "GENERAL", data = {} }
     (r) => r.status === "fulfilled" && !r.value?.success
   ).length;
 
-  return {
-    sent,
-    failed,
-    skipped: withoutToken.length,
-    total_targeted: userIds.length,
-  };
+  return { sent, failed, skipped: withoutToken.length, total_targeted: userIds.length };
 }
 
-/**
- * Broadcast a notification to all users matching a set of roles,
- * optionally scoped to a single barangay.
- *
- * @param {string[]} roles
- * @param {string}   barangayId  - optional scope
- * @param {string}   title
- * @param {string}   body
- * @param {string}   type
- * @param {object}   data
- */
-async function broadcastToRoles(
-  roles,
-  barangayId,
-  { title, body, type = "GENERAL", data = {} }
-) {
+export async function broadcastToRoles(roles, barangayId, { title, body, type = "GENERAL", data = {} }) {
   const filter = { role: { $in: roles }, is_active: true };
 
-  // Super admins are always included regardless of barangay scope
   const scopedFilter = barangayId
     ? {
         $or: [
@@ -231,30 +156,11 @@ async function broadcastToRoles(
   return sendToUsers(userIds, { title, body, type, data });
 }
 
-/**
- * Sends a push notification to a single patient by patient_id.
- * Convenience wrapper used by medication and sputum reminder jobs.
- *
- * @param {string} patientUserId   - the user_id linked to the patient record
- * @param {string} title
- * @param {string} body
- * @param {string} type
- * @param {object} data
- */
-async function sendToPatient(patientUserId, { title, body, type, data = {} }) {
+export async function sendToPatient(patientUserId, { title, body, type, data = {} }) {
   return sendToUsers([patientUserId], { title, body, type, data });
 }
 
-/**
- * List notification logs for a user with optional filters.
- *
- * @param {string}  userId
- * @param {string}  type
- * @param {boolean} isRead
- * @param {number}  page
- * @param {number}  limit
- */
-async function listNotifications({ user_id, type, is_read, page, limit }) {
+export async function listNotifications({ user_id, type, is_read, page, limit }) {
   const filter = {};
   if (user_id) filter.user_id = user_id;
   if (type) filter.type = type;
@@ -262,23 +168,14 @@ async function listNotifications({ user_id, type, is_read, page, limit }) {
 
   const skip = (page - 1) * limit;
   const [data, total] = await Promise.all([
-    Notification.find(filter)
-      .sort({ sent_at: -1 })
-      .skip(skip)
-      .limit(limit),
+    Notification.find(filter).sort({ sent_at: -1 }).skip(skip).limit(limit),
     Notification.countDocuments(filter),
   ]);
 
   return { data, total, page, limit, pages: Math.ceil(total / limit) };
 }
 
-/**
- * Returns the count of unread notifications for a user.
- * Used to power the notification badge on the mobile app.
- *
- * @param {string} userId
- */
-async function getUnreadCount(userId) {
+export async function getUnreadCount(userId) {
   const count = await Notification.countDocuments({
     user_id: userId,
     is_read: false,
@@ -286,38 +183,20 @@ async function getUnreadCount(userId) {
   return { user_id: userId, unread_count: count };
 }
 
-/**
- * Marks a list of notification_ids as read for the requesting user.
- * Scoped to the user's own notifications — prevents marking others' logs.
- *
- * @param {string}   userId
- * @param {string[]} notificationIds
- */
-async function markAsRead(userId, notificationIds) {
+export async function markAsRead(userId, notificationIds) {
   const result = await Notification.updateMany(
     {
       notification_id: { $in: notificationIds },
       user_id: userId,
       is_read: false,
     },
-    {
-      $set: { is_read: true, read_at: new Date() },
-    }
+    { $set: { is_read: true, read_at: new Date() } }
   );
 
-  return {
-    matched: result.matchedCount,
-    updated: result.modifiedCount,
-  };
+  return { matched: result.matchedCount, updated: result.modifiedCount };
 }
 
-/**
- * Marks ALL unread notifications as read for a user.
- * Triggered when the user opens the notifications screen.
- *
- * @param {string} userId
- */
-async function markAllAsRead(userId) {
+export async function markAllAsRead(userId) {
   const result = await Notification.updateMany(
     { user_id: userId, is_read: false },
     { $set: { is_read: true, read_at: new Date() } }
@@ -325,15 +204,3 @@ async function markAllAsRead(userId) {
 
   return { updated: result.modifiedCount };
 }
-
-module.exports = {
-  registerFcmToken,
-  removeFcmToken,
-  sendToUsers,
-  sendToPatient,
-  broadcastToRoles,
-  listNotifications,
-  getUnreadCount,
-  markAsRead,
-  markAllAsRead,
-};

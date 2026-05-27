@@ -1,32 +1,22 @@
-const reportService = require("./report.service");
-const {
+import * as reportService from "./report.service.js";
+import {
   generatePatientPDF,
   generateBarangayPDF,
   generateCityPDF,
   generateInventoryPDF,
   generateOutcomePDF,
-} = require("../../utils/pdfExporter");
-const { sendSuccess, sendError } = require("../../utils/apiResponse");
+} from "../../utils/pdfExporter.js";
+import { sendSuccess, sendError } from "../../utils/apiResponse.js";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/**
- * Streams a PDF buffer as a file download response.
- */
 function streamPDF(res, buffer, filename) {
   res.setHeader("Content-Type", "application/pdf");
-  res.setHeader(
-    "Content-Disposition",
-    `attachment; filename="${filename}.pdf"`
-  );
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}.pdf"`);
   res.setHeader("Content-Length", buffer.length);
   return res.end(buffer);
 }
 
-/**
- * Enforces barangay scope for non-super-admin users.
- * Throws a 403-friendly error if the requested barangay doesn't match.
- */
 function assertBarangayAccess(user, requestedBarangayId) {
   if (
     user.role !== "super_admin" &&
@@ -42,15 +32,7 @@ function assertBarangayAccess(user, requestedBarangayId) {
 
 // ─── Controllers ──────────────────────────────────────────────────────────────
 
-/**
- * GET /reports/patient
- * Full individual patient report — JSON or PDF.
- * Nurse/barangay_admin scoped to their own barangay's patients.
- *
- * Query: patient_id, include_* flags, from?, to?, format?
- * Role:  super_admin, barangay_admin, nurse
- */
-async function getPatientReport(req, res) {
+export async function getPatientReport(req, res) {
   try {
     const {
       patient_id,
@@ -74,16 +56,11 @@ async function getPatientReport(req, res) {
       to,
     });
 
-    // Enforce barangay scope after fetching (patient carries barangay_id)
     assertBarangayAccess(req.user, data.patient.barangay_id ?? null);
 
     if (format === "pdf") {
       const buffer = await generatePatientPDF(data);
-      return streamPDF(
-        res,
-        buffer,
-        `patient-report-${data.patient.tb_case_number}`
-      );
+      return streamPDF(res, buffer, `patient-report-${data.patient.tb_case_number}`);
     }
 
     return sendSuccess(res, 200, "Patient report generated", data);
@@ -93,22 +70,10 @@ async function getPatientReport(req, res) {
   }
 }
 
-/**
- * GET /reports/barangay
- * Barangay-level aggregate report — JSON or PDF.
- * Barangay admin scoped to own barangay; super admin can query any.
- *
- * Query: barangay_id, from?, to?, format?
- * Role:  super_admin, barangay_admin
- */
-async function getBarangayReport(req, res) {
+export async function getBarangayReport(req, res) {
   try {
     const { role, barangay_id: userBarangay } = req.user;
-
-    const barangayId =
-      role === "super_admin"
-        ? req.query.barangay_id
-        : userBarangay;
+    const barangayId = role === "super_admin" ? req.query.barangay_id : userBarangay;
 
     assertBarangayAccess(req.user, barangayId);
 
@@ -119,11 +84,7 @@ async function getBarangayReport(req, res) {
 
     if (req.query.format === "pdf") {
       const buffer = await generateBarangayPDF(data);
-      return streamPDF(
-        res,
-        buffer,
-        `barangay-report-${data.barangay.barangay_id}`
-      );
+      return streamPDF(res, buffer, `barangay-report-${data.barangay.barangay_id}`);
     }
 
     return sendSuccess(res, 200, "Barangay report generated", data);
@@ -133,15 +94,7 @@ async function getBarangayReport(req, res) {
   }
 }
 
-/**
- * GET /reports/city
- * City-wide aggregate report across all barangays — JSON or PDF.
- * Used for NTP quarterly/annual submission.
- *
- * Query: from?, to?, format?
- * Role:  super_admin only
- */
-async function getCityReport(req, res) {
+export async function getCityReport(req, res) {
   try {
     const data = await reportService.buildCityReport({
       from: req.query.from,
@@ -159,22 +112,10 @@ async function getCityReport(req, res) {
   }
 }
 
-/**
- * GET /reports/compliance-trend
- * Time-series compliance trend data for charts.
- * Scoped to a single barangay or city-wide.
- *
- * Query: barangay_id?, period?, from?, to?, limit?
- * Role:  super_admin, barangay_admin, nurse
- */
-async function getComplianceTrend(req, res) {
+export async function getComplianceTrend(req, res) {
   try {
     const { role, barangay_id: userBarangay } = req.user;
-
-    const barangayId =
-      role === "super_admin"
-        ? req.query.barangay_id
-        : userBarangay;
+    const barangayId = role === "super_admin" ? req.query.barangay_id : userBarangay;
 
     const data = await reportService.getComplianceTrend(
       barangayId,
@@ -190,31 +131,16 @@ async function getComplianceTrend(req, res) {
   }
 }
 
-/**
- * GET /reports/inventory
- * Inventory report — current stock levels across all or one barangay.
- *
- * Query: barangay_id?, format?
- * Role:  super_admin, barangay_admin, nurse
- */
-async function getInventoryReport(req, res) {
+export async function getInventoryReport(req, res) {
   try {
     const { role, barangay_id: userBarangay } = req.user;
-
-    const barangayId =
-      role === "super_admin"
-        ? req.query.barangay_id
-        : userBarangay;
+    const barangayId = role === "super_admin" ? req.query.barangay_id : userBarangay;
 
     const data = await reportService.buildInventoryReport(barangayId);
 
     if (req.query.format === "pdf") {
       const buffer = await generateInventoryPDF(data);
-      return streamPDF(
-        res,
-        buffer,
-        `inventory-report-${barangayId ?? "all"}-${Date.now()}`
-      );
+      return streamPDF(res, buffer, `inventory-report-${barangayId ?? "all"}-${Date.now()}`);
     }
 
     return sendSuccess(res, 200, "Inventory report generated", data);
@@ -223,37 +149,17 @@ async function getInventoryReport(req, res) {
   }
 }
 
-/**
- * GET /reports/treatment-outcomes
- * Treatment outcome report grouped by status.
- * Mirrors NTP quarterly outcome reporting format.
- *
- * Query: barangay_id?, year?, format?
- * Role:  super_admin, barangay_admin
- */
-async function getTreatmentOutcomes(req, res) {
+export async function getTreatmentOutcomes(req, res) {
   try {
     const { role, barangay_id: userBarangay } = req.user;
-
-    const barangayId =
-      role === "super_admin"
-        ? req.query.barangay_id
-        : userBarangay;
-
+    const barangayId = role === "super_admin" ? req.query.barangay_id : userBarangay;
     const year = req.query.year ? Number(req.query.year) : undefined;
 
-    const data = await reportService.buildTreatmentOutcomeReport(
-      barangayId,
-      year
-    );
+    const data = await reportService.buildTreatmentOutcomeReport(barangayId, year);
 
     if (req.query.format === "pdf") {
       const buffer = await generateOutcomePDF(data);
-      return streamPDF(
-        res,
-        buffer,
-        `outcome-report-${barangayId ?? "all"}-${year ?? "all"}`
-      );
+      return streamPDF(res, buffer, `outcome-report-${barangayId ?? "all"}-${year ?? "all"}`);
     }
 
     return sendSuccess(res, 200, "Treatment outcome report generated", data);
@@ -262,7 +168,7 @@ async function getTreatmentOutcomes(req, res) {
   }
 }
 
-module.exports = {
+export default {
   getPatientReport,
   getBarangayReport,
   getCityReport,

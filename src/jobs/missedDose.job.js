@@ -1,10 +1,25 @@
-const cron = require('node-cron');
+import cron from 'node-cron';
+import Patient from '../models/Patient.model.js';
+import Alert from '../models/Alert.model.js';
+import { sendToDevice } from '../utils/firebaseMessaging.js';
+import User from '../models/User.model.js';
+import logger from '../utils/logger.js';
 
-const Patient      = require('../models/Patient.model');
-const Alert        = require('../models/Alert.model');
-const { sendToDevice } = require('../utils/firebaseMessaging');
-const User         = require('../models/User.model');
-const logger       = require('../utils/logger');
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const addDays = (date, days) => {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  result.setHours(0, 0, 0, 0);
+  return result;
+};
+
+const isSameDay = (a, b) =>
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth()    === b.getMonth()    &&
+  a.getDate()     === b.getDate();
+
+// ─── Job ──────────────────────────────────────────────────────────────────────
 
 /**
  * Sputum Test Reminder Job
@@ -18,47 +33,30 @@ const logger       = require('../utils/logger');
  *     b. Push an FCM notification to the patient's mobile device (if token exists)
  *     c. Push an FCM notification to the assigned nurse
  */
-
-const addDays = (date, days) => {
-  const result = new Date(date);
-  result.setDate(result.getDate() + days);
-  result.setHours(0, 0, 0, 0);
-  return result;
-};
-
-const isSameDay = (a, b) => {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth()    === b.getMonth()    &&
-    a.getDate()     === b.getDate()
-  );
-};
-
-const runSputumReminderJob = async () => {
+export const runSputumReminderJob = async () => {
   logger.info('[sputumReminder.job] Checking upcoming sputum tests...');
 
   try {
     const today        = new Date();
     today.setHours(0, 0, 0, 0);
-    const reminderDate = addDays(today, 3); // target: due in 3 days
+    const reminderDate = addDays(today, 3);
 
     const patients = await Patient.find({ is_active: true });
 
     for (const patient of patients) {
       const schedule = patient.sputum_test_schedule ?? [];
 
-      // Find a pending test due in exactly 3 days
       const upcomingTest = schedule.find(
         (entry) =>
           entry.status === 'Pending' &&
-          isSameDay(new Date(entry.due_date), reminderDate)
+          isSameDay(new Date(entry.due_date), reminderDate),
       );
 
       if (!upcomingTest) continue;
 
       logger.info(
         `[sputumReminder.job] Reminder triggered for ${patient.tb_case_number} ` +
-        `— Month ${upcomingTest.month} test due on ${reminderDate.toDateString()}`
+        `— Month ${upcomingTest.month} test due on ${reminderDate.toDateString()}`,
       );
 
       // ── 1. Avoid duplicate alerts ────────────────────────────
@@ -111,13 +109,9 @@ const runSputumReminderJob = async () => {
               month:          String(upcomingTest.month),
             },
           });
-          logger.info(
-            `[sputumReminder.job] FCM sent to patient ${patient.tb_case_number}`
-          );
+          logger.info(`[sputumReminder.job] FCM sent to patient ${patient.tb_case_number}`);
         } catch (fcmErr) {
-          logger.warn(
-            `[sputumReminder.job] FCM to patient failed: ${fcmErr.message}`
-          );
+          logger.warn(`[sputumReminder.job] FCM to patient failed: ${fcmErr.message}`);
         }
       }
 
@@ -142,12 +136,10 @@ const runSputumReminderJob = async () => {
             },
           });
           logger.info(
-            `[sputumReminder.job] FCM sent to nurse ${nurse.user_id} for patient ${patient.tb_case_number}`
+            `[sputumReminder.job] FCM sent to nurse ${nurse.user_id} for patient ${patient.tb_case_number}`,
           );
         } catch (fcmErr) {
-          logger.warn(
-            `[sputumReminder.job] FCM to nurse failed: ${fcmErr.message}`
-          );
+          logger.warn(`[sputumReminder.job] FCM to nurse failed: ${fcmErr.message}`);
         }
       }
     }
@@ -159,15 +151,8 @@ const runSputumReminderJob = async () => {
 };
 
 // ─── Cron Schedule ────────────────────────────────────────────────────────────
-// Runs every day at 08:00 AM (Philippine Time, UTC+8)
 
-const scheduleSputumReminderJob = () => {
-  cron.schedule(
-    '0 8 * * *',
-    runSputumReminderJob,
-    { timezone: 'Asia/Manila' }
-  );
+export const scheduleSputumReminderJob = () => {
+  cron.schedule('0 8 * * *', runSputumReminderJob, { timezone: 'Asia/Manila' });
   logger.info('[sputumReminder.job] Scheduled — daily at 08:00 Asia/Manila');
 };
-
-module.exports = { scheduleSputumReminderJob, runSputumReminderJob };

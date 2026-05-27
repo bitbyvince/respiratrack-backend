@@ -329,3 +329,5 @@ export const nurseOrAdminInBarangay = [
   authorizeRoles("super_admin", "barangay_admin", "nurse"),
   enforceBarangayScope,
 ];
+export const authorize = authorizeRoles;
+export const roleMiddleware = authorizeRoles;

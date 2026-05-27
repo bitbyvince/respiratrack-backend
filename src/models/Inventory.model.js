@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 // ============================================================
 // Inventory Model
@@ -133,15 +133,11 @@ const inventorySchema = new mongoose.Schema(
       updatedAt: 'updated_at',
     },
     collection: 'medicine_inventory',
-  }
+  },
 );
 
 // ── Indexes ──────────────────────────────────────────────────
-// One document per drug per barangay — enforced
-inventorySchema.index(
-  { barangay_id: 1, drug_name: 1, strength: 1 },
-  { unique: true }
-);
+inventorySchema.index({ barangay_id: 1, drug_name: 1, strength: 1 }, { unique: true });
 inventorySchema.index({ barangay_id: 1 });
 inventorySchema.index({ stock_status: 1 });
 inventorySchema.index({ estimated_stockout_date: 1 });
@@ -171,7 +167,7 @@ inventorySchema.pre('save', function (next) {
 inventorySchema.methods.dispense = function (quantity) {
   if (quantity > this.remaining_stock) {
     throw new Error(
-      `Insufficient stock: requested ${quantity}, available ${this.remaining_stock}`
+      `Insufficient stock: requested ${quantity}, available ${this.remaining_stock}`,
     );
   }
   this.total_dispensed  += quantity;
@@ -199,4 +195,4 @@ inventorySchema.statics.getByBarangay = function (barangay_id) {
   return this.find({ barangay_id }).sort({ drug_name: 1 });
 };
 
-module.exports = mongoose.model('Inventory', inventorySchema);
+export default mongoose.model('Inventory', inventorySchema);

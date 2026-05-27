@@ -1,6 +1,6 @@
-const service = require("./barangay.service");
+import * as service from "./barangay.service.js";
 
-exports.createBarangay = async (req, res) => {
+export async function createBarangay(req, res) {
   try {
     const barangay = await service.createBarangay(req.body);
     return res.status(201).json({
@@ -14,20 +14,23 @@ exports.createBarangay = async (req, res) => {
       message: err.message || "Failed to create barangay.",
     });
   }
-};
+}
 
-exports.getBarangays = async (req, res) => {
+export async function getBarangays(req, res) {
   try {
-    const { page = 1, limit = 20, barangay_id, name, municipality, province, risk_level, is_active } = req.query;
-    const activeFilter = typeof is_active !== "undefined" ? is_active === "true" : undefined;
-    const queryFilters = {
+    const {
+      page = 1,
+      limit = 20,
       barangay_id,
       name,
       municipality,
       province,
       risk_level,
-      is_active: activeFilter,
-    };
+      is_active,
+    } = req.query;
+
+    const activeFilter = typeof is_active !== "undefined" ? is_active === "true" : undefined;
+    const queryFilters = { barangay_id, name, municipality, province, risk_level, is_active: activeFilter };
 
     const result = await service.getBarangays(queryFilters, { page, limit });
     return res.status(200).json({
@@ -41,9 +44,9 @@ exports.getBarangays = async (req, res) => {
       message: err.message || "Failed to retrieve barangays.",
     });
   }
-};
+}
 
-exports.getBarangay = async (req, res) => {
+export async function getBarangay(req, res) {
   try {
     const { barangayId } = req.params;
     const barangay = await service.getBarangay(barangayId);
@@ -58,9 +61,9 @@ exports.getBarangay = async (req, res) => {
       message: err.message || "Barangay not found.",
     });
   }
-};
+}
 
-exports.updateBarangay = async (req, res) => {
+export async function updateBarangay(req, res) {
   try {
     const { barangayId } = req.params;
     const barangay = await service.updateBarangay(barangayId, req.body);
@@ -75,4 +78,4 @@ exports.updateBarangay = async (req, res) => {
       message: err.message || "Failed to update barangay.",
     });
   }
-};
+}

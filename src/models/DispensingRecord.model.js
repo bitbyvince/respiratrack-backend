@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 // ============================================================
 // DispensingRecord Model
@@ -107,7 +107,7 @@ const dispensingRecordSchema = new mongoose.Schema(
       updatedAt: false, // Dispensing records are immutable
     },
     collection: 'dispensing_records',
-  }
+  },
 );
 
 // ── Indexes ─────────────────────────────────────────────────
@@ -126,7 +126,12 @@ dispensingRecordSchema.statics.getTotalDispensed = function (barangay_id, drug_n
 };
 
 // ── Static: average daily dispensing rate (for stockout estimator) ──
-dispensingRecordSchema.statics.getAvgDailyRate = function (barangay_id, drug_name, strength, days = 30) {
+dispensingRecordSchema.statics.getAvgDailyRate = function (
+  barangay_id,
+  drug_name,
+  strength,
+  days = 30,
+) {
   const since = new Date();
   since.setDate(since.getDate() - days);
 
@@ -142,4 +147,4 @@ dispensingRecordSchema.statics.getAvgDailyRate = function (barangay_id, drug_nam
   ]);
 };
 
-module.exports = mongoose.model('DispensingRecord', dispensingRecordSchema);
+export default mongoose.model('DispensingRecord', dispensingRecordSchema);

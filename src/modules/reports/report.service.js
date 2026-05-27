@@ -433,3 +433,5 @@ export async function buildTreatmentOutcomeReport(barangayId, year) {
     }, {}),
   };
 }
+
+
