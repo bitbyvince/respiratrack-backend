@@ -1,29 +1,30 @@
-import dns from "dns";
-dns.setServers(["8.8.8.8", "8.8.4.4"]);
-
-import express from "express";
-import dotenv from "dotenv";
-import cors from "cors";
-
+// server.js
 import app from "./src/app.js";
-import { connectDB } from "./src/config/db.js";
-import "./src/config/firebase.js";
+import cron from "node-cron";
 
-dotenv.config();
+import { runEscalationSweep } from "./src/jobs/escalationSweep.job.js";
+import { runComplianceSnapshot } from "./src/jobs/complianceSnapshot.job.js";
+import { runHeatmapSnapshot } from "./src/jobs/heatmapSnapshot.job.js";
+import { runReminderDispatch } from "./src/jobs/reminderDispatch.job.js";
+import { runStockAlert } from "./src/jobs/stockAlert.job.js";
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 
-app.use(cors());
-app.use(express.json());
+app.listen(PORT, () => {
+  console.log(`✅ RespiraTrack API running on port ${PORT}`);
 
-// Health check
-app.get("/health", (req, res) => {
-  res.json({ status: "ok" });
-});
+  // Add 2: Escalation sweep — every hour
+  cron.schedule("0 * * * *", runEscalationSweep);
 
-// Start server
-connectDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-  });
+  // Daily snapshots — midnight
+  cron.schedule("0 0 * * *", runComplianceSnapshot);
+  cron.schedule("0 0 * * *", runHeatmapSnapshot);
+
+  // Reminder dispatch — every 15 minutes
+  cron.schedule("*/15 * * * *", runReminderDispatch);
+
+  // Stock alert check — 6 AM daily
+  cron.schedule("0 6 * * *", runStockAlert);
+
+  console.log("✅ Cron jobs registered");
 });
