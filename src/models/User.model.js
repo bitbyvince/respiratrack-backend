@@ -20,6 +20,9 @@ const userSchema = new mongoose.Schema(
     phone_number:   { type: String, sparse: true, default: null },
     pin_hash:       { type: String, default: null },
 
+    // Device token — used by both patients and nurses for FCM push notifications
+    fcm_token: { type: String, default: null },  // 👈 add this line
+
     // Patient reference
     patient_id: { type: String, sparse: true, default: null },
 
