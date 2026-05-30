@@ -21,6 +21,11 @@
 // Basic role gate — blocks any role not in the allowed list.
 // ============================================================
 export const authorizeRoles = (...allowedRoles) => {
+  // Flatten in case caller passes an array instead of spread args:
+  // roleMiddleware([ROLES.PATIENT]) → allowedRoles = [['patient']]
+  // roleMiddleware(ROLES.PATIENT)   → allowedRoles = ['patient']
+  const roles = allowedRoles.flat();
+
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({
@@ -30,11 +35,11 @@ export const authorizeRoles = (...allowedRoles) => {
       });
     }
 
-    if (!allowedRoles.includes(req.user.role)) {
+    if (!roles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         code: "FORBIDDEN_ROLE",
-        message: `Access denied. Required role: ${allowedRoles.join(" or ")}. Your role: ${req.user.role}.`,
+        message: `Access denied. Required role: ${roles.join(" or ")}. Your role: ${req.user.role}.`,
       });
     }
 

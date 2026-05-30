@@ -11,13 +11,30 @@ export const createError = (statusCode, message) => {
   return err;
 };
 
-
-
-export const sendSuccess = (res, message = "Success", data = null, statusCode = 200) =>
-  sendResponse(res, statusCode, true, message, data);
+export const sendSuccess = (
+  res,
+  statusCodeOrMessage = 200,
+  message = "Success",
+  data = null,
+) => {
+  // Support both calling styles:
+  //   Old: sendSuccess(res, 'Message', data)
+  //   New: sendSuccess(res, 200, 'Message', data)
+  if (typeof statusCodeOrMessage === "string") {
+    // Called as sendSuccess(res, message, data) — shift args
+    return sendResponse(res, 200, true, statusCodeOrMessage, message);
+  }
+  return sendResponse(res, statusCodeOrMessage, true, message, data);
+};
 
 export const sendError = (res, err, defaultMessage = "Something went wrong") =>
-  sendResponse(res, err.statusCode || 500, false, err.message || defaultMessage, null);
+  sendResponse(
+    res,
+    err.statusCode || 500,
+    false,
+    err.message || defaultMessage,
+    null,
+  );
 
 // ── Default export (used via import ApiResponse from ...) ─────────────────────
 
@@ -28,8 +45,12 @@ const ApiResponse = {
   created: (res, message = "Resource created successfully", data = null) =>
     sendResponse(res, 201, true, message, data),
 
-  error: (res, message = "Something went wrong", statusCode = 500, data = null) =>
-    sendResponse(res, statusCode, false, message, data),
+  error: (
+    res,
+    message = "Something went wrong",
+    statusCode = 500,
+    data = null,
+  ) => sendResponse(res, statusCode, false, message, data),
 
   badRequest: (res, message = "Bad request", data = null) =>
     sendResponse(res, 400, false, message, data),

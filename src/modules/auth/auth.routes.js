@@ -51,4 +51,7 @@ router.post("/otp/verify", validate(verifyOtpSchema), authController.verifyOtp);
 // ── GET CURRENT USER ─────────────────────────────────────
 router.get("/me", authMiddleware, authController.getMe);
 
+// ── VERIFY TOKEN ─────────────────────────────────────────
+router.get("/verify", authMiddleware, authController.verifyToken);
+
 export default router;
