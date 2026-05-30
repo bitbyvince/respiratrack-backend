@@ -13,14 +13,19 @@
  *  Compliant  → score 0–29
  *  At Risk    → score 30–59
  *  Defaulter  → score 60–100
+ *
+ * Escalation levels (mirrors escalationLevels.js):
+ *  Level 1 → consecutive_missed >= 2
+ *  Level 2 → consecutive_missed >= 7
+ *  Level 3 → consecutive_missed >= 30
  */
 
 // ─── Weight Configuration ─────────────────────────────────────────────────────
 
 const WEIGHTS = {
-  CONSECUTIVE_MISSED: 0.50, // 50% of total score
-  SYMPTOM_FREQUENCY:  0.25, // 25%
-  DAYS_INTO_TREATMENT: 0.25, // 25%
+  CONSECUTIVE_MISSED:  0.50,
+  SYMPTOM_FREQUENCY:   0.25,
+  DAYS_INTO_TREATMENT: 0.25,
 };
 
 const PHASE_MULTIPLIER = {
@@ -32,16 +37,15 @@ const PHASE_MULTIPLIER = {
 
 /**
  * Scores based on consecutive missed doses.
- * Caps at 14 (Defaulter threshold).
+ * Caps at 30 (Lost to Follow-Up / Defaulter threshold).
  *
  * @param {number} consecutiveMissed
  * @returns {number} 0–100
  */
 const scoreConsecutiveMissed = (consecutiveMissed) => {
   if (consecutiveMissed <= 0)  return 0;
-  if (consecutiveMissed >= 14) return 100;
-  // Linear scale: 1 missed → ~7, 14 missed → 100
-  return Math.round((consecutiveMissed / 14) * 100);
+  if (consecutiveMissed >= 30) return 100;
+  return Math.round((consecutiveMissed / 30) * 100);
 };
 
 /**
@@ -66,9 +70,8 @@ const scoreSymptomFrequency = (symptomFrequency) => {
  * @returns {number} 0–100
  */
 const scoreDaysIntoTreatment = (daysIntoTreatment) => {
-  if (daysIntoTreatment <= 0)   return 100; // not yet started = highest risk
+  if (daysIntoTreatment <= 0)   return 100;
   if (daysIntoTreatment >= 180) return 0;
-  // Inverse linear: earlier = riskier
   return Math.round(((180 - daysIntoTreatment) / 180) * 100);
 };
 
@@ -106,10 +109,10 @@ const computeRiskScore = ({
   return {
     score: finalScore,
     factors: {
-      consecutive_missed:   consecutiveMissedDoses,
-      symptom_frequency:    symptomFrequency,
-      days_into_treatment:  daysIntoTreatment,
-      phase_weight:         phaseMultiplier,
+      consecutive_missed:  consecutiveMissedDoses,
+      symptom_frequency:   symptomFrequency,
+      days_into_treatment: daysIntoTreatment,
+      phase_weight:        phaseMultiplier,
     },
   };
 };
@@ -136,15 +139,15 @@ const getRiskLabel = (score) => {
  *
  * Level 0 → no escalation
  * Level 1 → consecutive_missed >= 2  (assigned nurse notified)
- * Level 2 → consecutive_missed >= 5  (barangay admin notified)
- * Level 3 → consecutive_missed >= 14 (super admin notified, mark Defaulter)
+ * Level 2 → consecutive_missed >= 7  (barangay admin notified)
+ * Level 3 → consecutive_missed >= 30 (super admin notified, mark Lost to Follow-Up)
  *
  * @param {number} consecutiveMissedDoses
  * @returns {0 | 1 | 2 | 3}
  */
 const resolveEscalationLevel = (consecutiveMissedDoses) => {
-  if (consecutiveMissedDoses >= 14) return 3;
-  if (consecutiveMissedDoses >= 5)  return 2;
+  if (consecutiveMissedDoses >= 30) return 3;
+  if (consecutiveMissedDoses >= 7)  return 2;
   if (consecutiveMissedDoses >= 2)  return 1;
   return 0;
 };

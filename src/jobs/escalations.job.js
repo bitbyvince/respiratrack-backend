@@ -51,7 +51,7 @@ const runEscalationJob = async () => {
             "escalation.escalated_at": now,
             "escalation.escalated_by": "system",
             "escalation.notes": `${consecutiveMissed} consecutive missed doses — ${meta.label}`,
-            ...(newLevel === 3 && { "compliance.risk_level": "Defaulter" }),
+            ...(newLevel === 3 && { "compliance.risk_level": "Lost to Follow-Up" }),
             updated_at: now,
           },
         },
