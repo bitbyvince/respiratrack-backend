@@ -1,73 +1,99 @@
-import { Router } from 'express';
-import * as controller from './appointment.controller.js';
-import { authenticate } from '../../middleware/auth.middleware.js';
-import { authorize } from '../../middleware/role.middleware.js';
-import { validate } from '../../middleware/validate.middleware.js';
-import { createAppointmentSchema, updateAppointmentSchema } from './appointment.validator.js';
+import { Router } from "express";
+import * as controller from "./appointment.controller.js";
+import * as service from "./appointment.service.js";
+import { authenticate } from "../../middleware/auth.middleware.js";
+import { authorizeRoles } from "../../middleware/role.middleware.js";
+import { validate } from "../../middleware/validate.middleware.js";
+import { sendSuccess, sendError } from "../../utils/apiResponse.js";
+import {
+  createAppointmentSchema,
+  updateAppointmentSchema,
+} from "./appointment.validator.js";
 
 const router = Router();
 
-router.post(
-  '/',
+// ── /my must be BEFORE /:appointmentId ───────────────────────
+router.get("/my", authenticate, authorizeRoles("patient"), async (req, res) => {
+  const { status, upcoming, page = 1, limit = 20 } = req.query;
+  try {
+    const appointments = await service.getPatientAppointments(
+      req.user.patient_id,
+      { status, upcoming, page, limit },
+    );
+    return sendSuccess(res, "Appointments retrieved.", { appointments });
+  } catch (err) {
+    return sendError(res, err);
+  }
+});
+
+router.get(
+  "/available-slots",
   authenticate,
-  authorize('patient', 'nurse'),
+  authorizeRoles("patient", "nurse", "barangay_admin", "super_admin"),
+  controller.getAvailableSlots,
+);
+
+router.post(
+  "/",
+  authenticate,
+  authorizeRoles("patient", "nurse"),
   validate(createAppointmentSchema),
   controller.createAppointment,
 );
 
 router.get(
-  '/',
+  "/",
   authenticate,
-  authorize('nurse', 'barangay_admin', 'super_admin'),
+  authorizeRoles("nurse", "barangay_admin", "super_admin"),
   controller.getAppointments,
 );
 
 router.get(
-  '/:appointmentId',
+  "/patient/:patientId",
   authenticate,
-  authorize('nurse', 'barangay_admin', 'super_admin', 'patient'),
-  controller.getAppointment,
-);
-
-router.get(
-  '/patient/:patientId',
-  authenticate,
-  authorize('nurse', 'barangay_admin', 'super_admin', 'patient'),
+  authorizeRoles("nurse", "barangay_admin", "super_admin", "patient"),
   controller.getPatientAppointments,
 );
 
 router.get(
-  '/barangay/:barangayId',
+  "/barangay/:barangayId",
   authenticate,
-  authorize('nurse', 'barangay_admin', 'super_admin'),
+  authorizeRoles("nurse", "barangay_admin", "super_admin"),
   controller.getBarangayAppointments,
 );
 
-router.patch(
-  '/:appointmentId/confirm',
+router.get(
+  "/:appointmentId",
   authenticate,
-  authorize('nurse', 'barangay_admin'),
+  authorizeRoles("nurse", "barangay_admin", "super_admin", "patient"),
+  controller.getAppointment,
+);
+
+router.patch(
+  "/:appointmentId/confirm",
+  authenticate,
+  authorizeRoles("nurse", "barangay_admin"),
   controller.confirmAppointment,
 );
 
 router.patch(
-  '/:appointmentId/complete',
+  "/:appointmentId/complete",
   authenticate,
-  authorize('nurse', 'barangay_admin'),
+  authorizeRoles("nurse", "barangay_admin"),
   controller.completeAppointment,
 );
 
 router.patch(
-  '/:appointmentId/cancel',
+  "/:appointmentId/cancel",
   authenticate,
-  authorize('nurse', 'barangay_admin', 'super_admin', 'patient'),
+  authorizeRoles("nurse", "barangay_admin", "super_admin", "patient"),
   controller.cancelAppointment,
 );
 
 router.patch(
-  '/:appointmentId',
+  "/:appointmentId",
   authenticate,
-  authorize('nurse', 'barangay_admin'),
+  authorizeRoles("nurse", "barangay_admin"),
   validate(updateAppointmentSchema),
   controller.updateAppointment,
 );

@@ -23,7 +23,7 @@ const symptomEntrySchema = Joi.object({
 });
 
 export const logSymptomSchema = Joi.object({
-  patient_id: Joi.string().required(),
+  patient_id: Joi.string().optional(), // populated from req.user in service
   symptoms: Joi.array().items(symptomEntrySchema).min(1).required().messages({
     "array.min": "At least one symptom must be provided.",
   }),

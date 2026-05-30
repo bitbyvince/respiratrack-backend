@@ -1,7 +1,8 @@
+// medication-log.routes.js
+
 import { Router } from "express";
 import * as controller from "./medication-log.controller.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
-import { authorize } from "../../middleware/role.middleware.js";
 import { validate } from "../../middleware/validate.middleware.js";
 import {
   logMedicationSchema,
@@ -10,48 +11,83 @@ import {
 
 const router = Router();
 
+// ── Inline role check — avoids circular dependency ────────
+const allowRoles =
+  (...roles) =>
+  (req, res, next) => {
+    if (!req.user) {
+      return res
+        .status(401)
+        .json({
+          success: false,
+          code: "NOT_AUTHENTICATED",
+          message: "Authentication required.",
+        });
+    }
+    if (!roles.includes(req.user.role)) {
+      return res
+        .status(403)
+        .json({
+          success: false,
+          code: "FORBIDDEN_ROLE",
+          message: `Access denied. Your role: ${req.user.role}.`,
+        });
+    }
+    return next();
+  };
+
+// ── Patient self-view ─────────────────────────────────────
+router.get(
+  "/my",
+  authenticate,
+  allowRoles("patient"),
+  controller.getMyLogByDate,
+);
+
+// ── Mark taken ────────────────────────────────────────────
 router.post(
   "/",
   authenticate,
-  authorize("nurse", "patient"),
+  allowRoles("nurse", "patient"),
   validate(logMedicationSchema),
-  controller.logMedication
+  controller.logMedication,
 );
 
+// ── Staff + patient read routes ───────────────────────────
 router.get(
   "/patient/:patientId",
   authenticate,
-  authorize("nurse", "barangay_admin", "super_admin"),
-  controller.getPatientLogs
+  allowRoles("nurse", "barangay_admin", "super_admin", "patient"),
+  controller.getPatientLogs,
 );
 
 router.get(
   "/patient/:patientId/today",
   authenticate,
-  authorize("nurse", "patient"),
-  controller.getTodayLog
+  allowRoles("nurse", "patient"),
+  controller.getTodayLog,
 );
 
 router.get(
   "/patient/:patientId/missed",
   authenticate,
-  authorize("nurse", "barangay_admin", "super_admin"),
-  controller.getMissedDoses
+  allowRoles("nurse", "barangay_admin", "super_admin"),
+  controller.getMissedDoses,
 );
 
 router.get(
   "/barangay/:barangayId",
   authenticate,
-  authorize("nurse", "barangay_admin", "super_admin"),
-  controller.getBarangayLogs
+  allowRoles("nurse", "barangay_admin", "super_admin"),
+  controller.getBarangayLogs,
 );
 
 router.patch(
   "/:logId",
   authenticate,
-  authorize("nurse"),
+  allowRoles("nurse"),
   validate(updateMedicationLogSchema),
-  controller.updateLog
+  controller.updateLog,
 );
 
 export default router;

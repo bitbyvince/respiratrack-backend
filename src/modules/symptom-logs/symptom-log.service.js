@@ -1,3 +1,5 @@
+// src/modules/symptom-logs/symptom-log.service.js
+
 import SymptomLog from "../../models/SymptomLog.model.js";
 import Patient from "../../models/Patient.model.js";
 
@@ -11,6 +13,10 @@ const VALID_SYMPTOMS = [
   "Abdominal Pain",
   "Fever",
   "Fatigue",
+  "Tingling in Hands/Feet",
+  "Dark Urine",
+  "Yellowing of Skin",
+  "Hearing Loss",
   "Other",
 ];
 
@@ -20,25 +26,36 @@ const generateLogId = async () => {
 };
 
 export const logSymptom = async (data, user) => {
-  const { patient_id, symptoms, free_text_notes } = data;
+  // ── Always use patient_id from JWT ───────────────────────
+  const patientId = user.patient_id;
+  if (!patientId) throw new Error("Patient ID not found in token.");
 
-  const patient = await Patient.findOne({ patient_id });
+  const patient = await Patient.findOne({ patient_id: patientId });
   if (!patient) throw new Error("Patient not found.");
 
+  // ── Destructure BEFORE using ─────────────────────────────
+  const { symptoms, free_text_notes } = data;
+
+  if (!symptoms || !Array.isArray(symptoms) || symptoms.length === 0) {
+    throw new Error("At least one symptom is required.");
+  }
+
   for (const s of symptoms) {
-    if (!VALID_SYMPTOMS.includes(s.symptom))
+    if (!VALID_SYMPTOMS.includes(s.symptom)) {
       throw new Error(
         `Invalid symptom: ${s.symptom}. Must be one of: ${VALID_SYMPTOMS.join(", ")}`,
       );
-    if (![1, 2, 3].includes(s.severity))
+    }
+    if (![1, 2, 3].includes(Number(s.severity))) {
       throw new Error(
         `Invalid severity for ${s.symptom}. Must be 1 (Mild), 2 (Moderate), or 3 (Severe).`,
       );
+    }
   }
 
   return SymptomLog.create({
     log_id: await generateLogId(),
-    patient_id,
+    patient_id: patientId,
     tb_case_number: patient.tb_case_number,
     barangay_id: patient.barangay_id,
     logged_at: new Date(),
@@ -51,7 +68,7 @@ export const logSymptom = async (data, user) => {
 
 export const getPatientLogs = async (
   patientId,
-  { page, limit, from, to, severity },
+  { page = 1, limit = 20, from, to, severity } = {},
 ) => {
   const query = { patient_id: patientId };
   if (from || to) {
@@ -75,7 +92,7 @@ export const getPatientLogs = async (
 export const getLatestLog = async (patientId) =>
   SymptomLog.findOne({ patient_id: patientId }).sort({ logged_at: -1 });
 
-export const getBarangayLogs = async (barangayId, { date, reviewed }) => {
+export const getBarangayLogs = async (barangayId, { date, reviewed } = {}) => {
   const query = { barangay_id: barangayId };
   if (date) {
     const start = new Date(date);

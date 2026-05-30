@@ -1,7 +1,6 @@
 import StockAllocation from "../../models/StockAllocation.model.js";
 import Inventory from "../../models/Inventory.model.js";
-import { generateAllocationId } from "../../utils/caseNumberGenerator.js";
-import { ApiError } from "../../utils/apiResponse.js";
+import { createError } from "../../utils/apiResponse.js";
 
 export const allocateStock = async (payload, allocatedBy) => {
   const {
@@ -15,7 +14,8 @@ export const allocateStock = async (payload, allocatedBy) => {
     notes,
   } = payload;
 
-  const allocation_id = await generateAllocationId();
+  const allocationCount = await StockAllocation.countDocuments();
+  const allocation_id = `ALLOC-${String(allocationCount + 1).padStart(4, "0")}`;
 
   const allocation = await StockAllocation.create({
     allocation_id,
@@ -81,7 +81,7 @@ export const getAllocations = async ({
 
 export const getAllocationById = async (allocation_id) => {
   const allocation = await StockAllocation.findOne({ allocation_id }).lean();
-  if (!allocation) throw new ApiError(404, "Allocation not found");
+  if (!allocation) throw createError(404, "Allocation not found");
   return allocation;
 };
 

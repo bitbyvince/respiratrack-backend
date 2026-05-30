@@ -9,27 +9,32 @@ const generateAppointmentId = async () => {
   return `APT-${String(count + 1).padStart(4, '0')}`;
 };
 
-export const createAppointment = async (data, user) => {
-  const { patient_id, scheduled_date, scheduled_time, purpose, notes } = data;
+export async function createAppointment(data, user) {
+  const patient_id = data.patient_id || user.patient_id;
 
   const patient = await Patient.findOne({ patient_id });
-  if (!patient) throw new Error('Patient not found.');
+  if (!patient) throw new Error("Patient not found.");
 
   if (!VALID_PURPOSES.includes(purpose)) {
-    throw new Error(`Invalid purpose. Must be one of: ${VALID_PURPOSES.join(', ')}`);
+    throw new Error(
+      `Invalid purpose. Must be one of: ${VALID_PURPOSES.join(", ")}`,
+    );
   }
 
   const scheduledDateObj = new Date(scheduled_date);
   if (scheduledDateObj < new Date()) {
-    throw new Error('Scheduled date must be in the future.');
+    throw new Error("Scheduled date must be in the future.");
   }
 
   const existing = await Appointment.findOne({
     patient_id,
     scheduled_date: scheduledDateObj,
-    status: { $in: ['Pending', 'Confirmed'] },
+    status: { $in: ["Pending", "Confirmed"] },
   });
-  if (existing) throw new Error('Patient already has a pending or confirmed appointment on this date.');
+  if (existing)
+    throw new Error(
+      "Patient already has a pending or confirmed appointment on this date.",
+    );
 
   const appointmentId = await generateAppointmentId();
 
@@ -44,9 +49,9 @@ export const createAppointment = async (data, user) => {
     scheduled_date: scheduledDateObj,
     scheduled_time,
     purpose,
-    status: 'Pending',
+    status: "Pending",
     confirmed_by: null,
-    notes: notes || '',
+    notes: notes || "",
     created_at: new Date(),
     updated_at: new Date(),
   });
@@ -81,11 +86,39 @@ export const getAppointment = async (appointmentId) => {
   return appointment;
 };
 
-export const getPatientAppointments = async (patientId, { status, purpose }) => {
+export async function getAvailableSlots(barangayId, date) {
+  // Return fixed slots for now — replace with real logic later
+  return [
+    "08:00",
+    "09:00",
+    "10:00",
+    "11:00",
+    "13:00",
+    "14:00",
+    "15:00",
+    "16:00",
+  ];
+}
+
+export const getPatientAppointments = async (patientId, filters = {}) => {
   const query = { patient_id: patientId };
-  if (status) query.status = status;
-  if (purpose) query.purpose = purpose;
-  return await Appointment.find(query).sort({ scheduled_date: -1 });
+
+  if (filters.status) {
+    // Handle comma-separated: 'Pending,Confirmed'
+    query.status = { $in: filters.status.split(",").map((s) => s.trim()) };
+  }
+
+  if (filters.upcoming === "true") {
+    query.scheduled_date = { $gte: new Date() };
+  } else if (filters.upcoming === "false") {
+    query.scheduled_date = { $lt: new Date() };
+  }
+
+  const appointments = await Appointment.find(query)
+    .sort({ scheduled_date: 1 })
+    .lean();
+
+  return appointments;
 };
 
 export const getBarangayAppointments = async (barangayId, { status, purpose, date }) => {

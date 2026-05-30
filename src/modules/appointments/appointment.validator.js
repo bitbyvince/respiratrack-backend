@@ -3,7 +3,7 @@ import Joi from 'joi';
 const VALID_PURPOSES = ['Follow-up', 'Sputum Test', 'Emergency', 'Routine'];
 
 export const createAppointmentSchema = Joi.object({
-  patient_id: Joi.string().required(),
+  patient_id: Joi.string().optional(),
   scheduled_date: Joi.date().greater('now').required().messages({
     'date.greater': 'Scheduled date must be in the future.',
   }),

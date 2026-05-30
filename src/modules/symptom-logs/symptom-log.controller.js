@@ -1,12 +1,12 @@
 import * as service from "./symptom-log.service.js";
-import { success, error } from "../../utils/apiResponse.js";
+import { sendSuccess, sendError } from "../../utils/apiResponse.js";
 
 export const logSymptom = async (req, res) => {
   try {
     const log = await service.logSymptom(req.body, req.user);
-    return res.status(201).json(success("Symptom log recorded.", { log }));
+    return sendSuccess(res, "Symptom log recorded.", { log }, 201);
   } catch (err) {
-    return res.status(400).json(error(err.message));
+    return sendError(res, err);
   }
 };
 
@@ -21,20 +21,18 @@ export const getPatientLogs = async (req, res) => {
       to,
       severity,
     });
-    return res.status(200).json(success("Symptom logs retrieved.", result));
+    return sendSuccess(res, "Symptom logs retrieved.", result);
   } catch (err) {
-    return res.status(400).json(error(err.message));
+    return sendError(res, err);
   }
 };
 
 export const getLatestLog = async (req, res) => {
   try {
     const log = await service.getLatestLog(req.params.patientId);
-    return res
-      .status(200)
-      .json(success("Latest symptom log retrieved.", { log }));
+    return sendSuccess(res, "Latest symptom log retrieved.", { log });
   } catch (err) {
-    return res.status(400).json(error(err.message));
+    return sendError(res, err);
   }
 };
 
@@ -44,21 +42,17 @@ export const getBarangayLogs = async (req, res) => {
       req.params.barangayId,
       req.query,
     );
-    return res
-      .status(200)
-      .json(success("Barangay symptom logs retrieved.", { logs }));
+    return sendSuccess(res, "Barangay symptom logs retrieved.", { logs });
   } catch (err) {
-    return res.status(400).json(error(err.message));
+    return sendError(res, err);
   }
 };
 
 export const reviewLog = async (req, res) => {
   try {
     const log = await service.reviewLog(req.params.logId, req.user);
-    return res
-      .status(200)
-      .json(success("Symptom log marked as reviewed.", { log }));
+    return sendSuccess(res, "Symptom log marked as reviewed.", { log });
   } catch (err) {
-    return res.status(400).json(error(err.message));
+    return sendError(res, err);
   }
 };

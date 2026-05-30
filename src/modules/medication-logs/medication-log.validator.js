@@ -10,7 +10,7 @@ const medicineEntrySchema = Joi.object({
 });
 
 export const logMedicationSchema = Joi.object({
-  patient_id: Joi.string().required(),
+  patient_id: Joi.string().optional(),
   log_date: Joi.date().optional(),
   medicines: Joi.array().items(medicineEntrySchema).min(1).required(),
   notes: Joi.string().allow("").optional(),

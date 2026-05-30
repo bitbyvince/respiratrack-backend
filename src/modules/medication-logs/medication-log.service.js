@@ -7,22 +7,29 @@ const generateLogId = async () => {
 };
 
 export async function logMedication(data, user) {
-  const { patient_id, log_date, medicines, notes } = data;
+  const { log_date, medicines, notes } = data;
 
-  const patient = await Patient.findOne({ patient_id });
+  // ── Always use patient_id from JWT, never from request body ──
+  const patientId = user.patient_id;
+  if (!patientId) throw new Error("Patient ID not found in token.");
+
+  const patient = await Patient.findOne({ patient_id: patientId });
   if (!patient) throw new Error("Patient not found.");
 
   const dateObj = log_date ? new Date(log_date) : new Date();
   const dateOnly = dateObj.toISOString().split("T")[0];
 
   const existing = await MedicationLog.findOne({
-    patient_id,
+    patient_id: patientId,
     log_date: {
       $gte: new Date(dateOnly),
       $lt: new Date(new Date(dateOnly).getTime() + 86400000),
     },
   });
-  if (existing) throw new Error("A medication log for this patient already exists for today.");
+  if (existing)
+    throw new Error(
+      "A medication log for this patient already exists for today.",
+    );
 
   const allTaken = medicines.every((m) => m.status === "Taken");
   const allMissed = medicines.every((m) => m.status === "Missed");
@@ -31,11 +38,9 @@ export async function logMedication(data, user) {
   const treatmentStart = new Date(patient.date_started);
   const treatment_day = Math.floor((dateObj - treatmentStart) / 86400000) + 1;
 
-  const logId = await generateLogId();
-
   const log = await MedicationLog.create({
-    log_id: logId,
-    patient_id,
+    log_id: await generateLogId(),
+    patient_id: patientId,
     tb_case_number: patient.tb_case_number,
     barangay_id: patient.barangay_id,
     log_date: new Date(dateOnly),
@@ -52,8 +57,11 @@ export async function logMedication(data, user) {
   return log;
 }
 
+// rest of the file stays the same...
 async function updatePatientCompliance(patient, overall_status, logDate) {
-  const totalLogs = await MedicationLog.countDocuments({ patient_id: patient.patient_id });
+  const totalLogs = await MedicationLog.countDocuments({
+    patient_id: patient.patient_id,
+  });
   const takenLogs = await MedicationLog.countDocuments({
     patient_id: patient.patient_id,
     overall_status: { $in: ["Taken", "Partial"] },
@@ -79,8 +87,8 @@ async function updatePatientCompliance(patient, overall_status, logDate) {
     consecutive_missed_doses >= 14
       ? "Defaulter"
       : consecutive_missed_doses >= 2
-      ? "At Risk"
-      : "Compliant";
+        ? "At Risk"
+        : "Compliant";
 
   await Patient.updateOne(
     { patient_id: patient.patient_id },
@@ -88,18 +96,25 @@ async function updatePatientCompliance(patient, overall_status, logDate) {
       $set: {
         "compliance.doses_taken": takenLogs,
         "compliance.doses_missed": totalLogs - takenLogs,
-        "compliance.compliance_percentage": parseFloat(compliance_percentage.toFixed(2)),
+        "compliance.compliance_percentage": parseFloat(
+          compliance_percentage.toFixed(2),
+        ),
         "compliance.consecutive_missed_doses": consecutive_missed_doses,
         "compliance.risk_level": risk_level,
         "compliance.last_dose_taken":
-          overall_status !== "Missed" ? logDate : patient.compliance.last_dose_taken,
+          overall_status !== "Missed"
+            ? logDate
+            : patient.compliance.last_dose_taken,
         updated_at: new Date(),
       },
-    }
+    },
   );
 }
 
-export async function getPatientLogs(patientId, { page, limit, status, from, to }) {
+export async function getPatientLogs(
+  patientId,
+  { page = 1, limit = 20, status, from, to } = {},
+) {
   const query = { patient_id: patientId };
   if (status) query.overall_status = status;
   if (from || to) {
@@ -110,7 +125,10 @@ export async function getPatientLogs(patientId, { page, limit, status, from, to 
 
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const [logs, total] = await Promise.all([
-    MedicationLog.find(query).sort({ log_date: -1 }).skip(skip).limit(parseInt(limit)),
+    MedicationLog.find(query)
+      .sort({ log_date: -1 })
+      .skip(skip)
+      .limit(parseInt(limit)),
     MedicationLog.countDocuments(query),
   ]);
 
@@ -128,7 +146,7 @@ export async function getTodayLog(patientId) {
   });
 }
 
-export async function getMissedDoses(patientId, { from, to }) {
+export async function getMissedDoses(patientId, { from, to } = {}) {
   const query = { patient_id: patientId, overall_status: "Missed" };
   if (from || to) {
     query.log_date = {};
@@ -138,7 +156,7 @@ export async function getMissedDoses(patientId, { from, to }) {
   return MedicationLog.find(query).sort({ log_date: -1 });
 }
 
-export async function getBarangayLogs(barangayId, { date, status }) {
+export async function getBarangayLogs(barangayId, { date, status } = {}) {
   const query = { barangay_id: barangayId };
   if (status) query.overall_status = status;
   if (date) {
@@ -165,7 +183,8 @@ export async function updateLog(logId, data, user) {
   await log.save();
 
   const patient = await Patient.findOne({ patient_id: log.patient_id });
-  if (patient) await updatePatientCompliance(patient, log.overall_status, log.log_date);
+  if (patient)
+    await updatePatientCompliance(patient, log.overall_status, log.log_date);
 
   return log;
 }

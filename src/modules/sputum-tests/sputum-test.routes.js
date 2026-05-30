@@ -1,6 +1,7 @@
 import express from "express";
 import * as controller from "./sputum-test.controller.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
+import { sendSuccess, sendError } from "../../utils/apiResponse.js";
 import { authorizeRoles } from "../../middleware/role.middleware.js";
 import { validate } from "../../middleware/validate.middleware.js";
 import {
@@ -53,6 +54,21 @@ router.get(
   authenticate,
   authorizeRoles(...ALL_ROLES),
   controller.getPatientSputumSummary,
+);
+// ── Patient fetches their own sputum tests (mobile) ──────────
+router.get(
+  '/my',
+  authenticate,
+  authorizeRoles(ROLES.PATIENT),
+  async (req, res) => {
+    try {
+      const summary = await import('./sputum-test.service.js')
+        .then(m => m.getPatientSputumSummary(req.user.patient_id));
+      return sendSuccess(res, 'Sputum tests retrieved.', summary);
+    } catch (err) {
+      return sendError(res, err);
+    }
+  },
 );
 router.get(
   "/:testId",
