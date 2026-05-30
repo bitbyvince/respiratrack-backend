@@ -42,7 +42,7 @@ export const authenticate = async (req, res, next) => {
     // ── 2. Verify token ───────────────────────────────────
     let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
+      decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
     } catch (err) {
       if (err.name === "TokenExpiredError") {
         return res.status(401).json({
@@ -131,7 +131,7 @@ export const softAuthenticate = async (req, res, next) => {
 
     let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
+      decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
     } catch {
       req.user = null;
       return next();

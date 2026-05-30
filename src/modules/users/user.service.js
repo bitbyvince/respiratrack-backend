@@ -39,12 +39,15 @@ const assertCanCreateRole = (requester, targetRole) => {
 };
 
 const generateUserId = async () => {
-  const latest = await User.findOne()
-    .sort({ created_at: -1 })
-    .select("user_id");
-  if (!latest) return "USR-0001";
-  const num = parseInt(latest.user_id.split("-")[1]) + 1;
-  return `USR-${String(num).padStart(4, "0")}`;
+  const users = await User.find({}, 'user_id').lean();
+  if (!users.length) return 'USR-0001';
+  
+  const nums = users
+    .map(u => parseInt(u.user_id?.split('-')[1]))
+    .filter(n => !isNaN(n));
+  
+  const max = Math.max(...nums);
+  return `USR-${String(max + 1).padStart(4, '0')}`;
 };
 
 export const listStaff = async (filters = {}) => {
@@ -81,13 +84,24 @@ export const getStaffById = async (userId, requester) => {
 
 export const createStaff = async (data, requester) => {
   assertCanCreateRole(requester, data.role);
+
   if (requester.role === ROLES.BARANGAY_ADMIN) {
     data.barangay_id = requester.barangay_id;
+    data.barangay_name = requester.barangay_name;       // ← add this
     data.health_center_id = requester.health_center_id;
   }
+
+  // ── Validate barangay & health center for non-super-admin roles ──
+  if (data.role !== ROLES.SUPER_ADMIN) {
+    if (!data.barangay_id)
+      throw createError(400, 'barangay_id is required for this role.');
+    if (!data.health_center_id)
+      throw createError(400, 'health_center_id is required for this role.');
+  }
+
   const existing = await User.findOne({ email: data.email });
   if (existing)
-    throw createError(409, "A user with this email already exists.");
+    throw createError(409, 'A user with this email already exists.');
 
   const userId = await generateUserId();
   const passwordHash = await bcrypt.hash(data.password, 12);
@@ -101,11 +115,13 @@ export const createStaff = async (data, requester) => {
     password_hash: passwordHash,
     phone_number: data.phone_number || null,
     barangay_id: data.barangay_id || null,
+    barangay_name: data.barangay_name || null,
     health_center_id: data.health_center_id || null,
     is_active: true,
     created_at: new Date(),
     updated_at: new Date(),
   });
+
   await user.save();
 
   const result = user.toObject();

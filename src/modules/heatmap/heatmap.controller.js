@@ -12,7 +12,7 @@ export async function getHeatmap(req, res) {
       barangayId
     );
 
-    return sendSuccess(res, 200, "Heatmap data fetched", snapshots);
+    return sendSuccess(res,"Heatmap data fetched", snapshots);
   } catch (err) {
     return sendError(res, 500, err.message);
   }
@@ -33,7 +33,7 @@ export async function getBarangayDetail(req, res) {
       req.query.snapshot_date
     );
 
-    return sendSuccess(res, 200, "Barangay detail fetched", detail);
+    return sendSuccess(res, "Barangay detail fetched", detail);
   } catch (err) {
     const status = err.message.includes("No heatmap snapshot") ? 404 : 500;
     return sendError(res, status, err.message);
@@ -57,7 +57,7 @@ export async function getHeatmapHistory(req, res) {
       req.query.limit ? Number(req.query.limit) : undefined
     );
 
-    return sendSuccess(res, 200, "Heatmap history fetched", history);
+    return sendSuccess(res, "Heatmap history fetched", history);
   } catch (err) {
     return sendError(res, 500, err.message);
   }
@@ -72,7 +72,6 @@ export async function buildSnapshots(req, res) {
 
     return sendSuccess(
       res,
-      201,
       `${snapshots.length} heatmap snapshot(s) built`,
       { count: snapshots.length }
     );

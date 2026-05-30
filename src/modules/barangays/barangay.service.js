@@ -1,14 +1,35 @@
 import BarangayModule from "../../models/Barangay.model.js";
+import Patient from "../../models/Patient.model.js";
 
-// Handles both default and named exports from the model
 const Barangay = BarangayModule.default || BarangayModule;
+
+// ── Compute real stats from patients collection ────────────
+const computeBarangayStats = async (barangayId) => {
+  const [total_patients, at_risk_count, defaulter_count, compliant_count] = await Promise.all([
+    Patient.countDocuments({ barangay_id: barangayId, is_active: true }),
+    Patient.countDocuments({ barangay_id: barangayId, is_active: true, 'compliance.risk_level': 'At Risk' }),
+    Patient.countDocuments({ barangay_id: barangayId, is_active: true, 'compliance.risk_level': 'Defaulter' }),
+    Patient.countDocuments({ barangay_id: barangayId, is_active: true, 'compliance.risk_level': 'Compliant' }),
+  ]);
+
+  const compliance_percentage = total_patients > 0
+    ? parseFloat(((compliant_count / total_patients) * 100).toFixed(2))
+    : 0;
+
+  return {
+    total_patients,
+    at_risk_count,
+    defaulter_count,
+    compliant_count,
+    compliance_percentage,
+  };
+};
 
 export async function createBarangay(data) {
   const existing = await Barangay.findOne({ barangay_id: data.barangay_id });
   if (existing) {
     throw new Error("Barangay ID already exists.");
   }
-
   return Barangay.create(data);
 }
 
@@ -28,13 +49,26 @@ export async function getBarangays(filters, { page = 1, limit = 20 }) {
 
   const [barangays, total] = await Promise.all([
     Barangay.find(query)
-      .sort({ "stats.compliance_percentage": 1, barangay_id: 1 })
+      .sort({ barangay_id: 1 })
       .skip(skip)
       .limit(parsedLimit),
     Barangay.countDocuments(query),
   ]);
 
-  return { barangays, total, page: parsedPage, limit: parsedLimit };
+  // Attach real computed stats to each barangay
+  const barangaysWithStats = await Promise.all(
+    barangays.map(async (b) => {
+      const liveStats = await computeBarangayStats(b.barangay_id);
+      const obj = b.toObject();
+      obj.stats = {
+        ...obj.stats,
+        ...liveStats,
+      };
+      return obj;
+    })
+  );
+
+  return { barangays: barangaysWithStats, total, page: parsedPage, limit: parsedLimit };
 }
 
 export async function getBarangay(barangayId) {
@@ -42,7 +76,11 @@ export async function getBarangay(barangayId) {
   if (!barangay) {
     throw new Error("Barangay not found.");
   }
-  return barangay;
+
+  const liveStats = await computeBarangayStats(barangayId);
+  const obj = barangay.toObject();
+  obj.stats = { ...obj.stats, ...liveStats };
+  return obj;
 }
 
 export async function updateBarangay(barangayId, data) {

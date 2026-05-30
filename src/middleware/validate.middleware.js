@@ -1,5 +1,3 @@
-// src/middleware/validate.middleware.js
-
 import Joi from "joi";
 
 const VALID_SOURCES = ["body", "query", "params", "headers"];
@@ -28,7 +26,12 @@ export const validate = (schema, source = "body") => {
       });
     }
 
-    req[location] = value;
+    if (location === 'query') {
+      Object.assign(req.query, value);
+    } else {
+      req[location] = value;
+    }
+
     return next();
   };
 };

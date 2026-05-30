@@ -89,6 +89,9 @@ const contactTracingSchema = Joi.object({
 // REGISTER PATIENT
 // ================================================================
 export const registerPatientSchema = Joi.object({
+  barangay_id: Joi.string().optional().allow(null, ''),
+  health_center_id: Joi.string().optional().allow(null, ''),
+
   last_name: nameField('Last name'),
   first_name: nameField('First name'),
   middle_name: nameField('Middle name', false),

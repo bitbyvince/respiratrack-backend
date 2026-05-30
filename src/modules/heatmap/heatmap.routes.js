@@ -19,7 +19,7 @@ const ADMIN_ONLY = [ROLES.SUPER_ADMIN];
 router.get(
   "/",
   authenticate,
-  authorizeRoles(ALL_STAFF),
+  authorizeRoles(...ALL_STAFF),
   validate(getHeatmapSchema, "query"),
   controller.getHeatmap
 );
@@ -27,7 +27,7 @@ router.get(
 router.post(
   "/build",
   authenticate,
-  authorizeRoles(ADMIN_ONLY),
+  authorizeRoles(...ADMIN_ONLY),
   validate(buildSnapshotSchema),
   controller.buildSnapshots
 );
@@ -35,7 +35,7 @@ router.post(
 router.get(
   "/barangays/:barangayId",
   authenticate,
-  authorizeRoles(ALL_STAFF),
+  authorizeRoles(...ALL_STAFF),
   validate(getBarangayDetailSchema, "query"),
   controller.getBarangayDetail
 );
@@ -43,7 +43,7 @@ router.get(
 router.get(
   "/barangays/:barangayId/history",
   authenticate,
-  authorizeRoles(ALL_STAFF),
+  authorizeRoles(...ALL_STAFF),
   validate(getHeatmapHistorySchema, "query"),
   controller.getHeatmapHistory
 );

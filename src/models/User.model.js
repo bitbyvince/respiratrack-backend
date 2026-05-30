@@ -16,7 +16,7 @@ const userSchema = new mongoose.Schema(
     password_hash: { type: String, default: null },
 
     // Patient login
-    tb_case_number: { type: String,  default: null },
+    tb_case_number: { type: String,  default: undefined },
     phone_number: { type: String, default: null },
     pin_hash: { type: String, default: null },
 
@@ -28,6 +28,7 @@ const userSchema = new mongoose.Schema(
 
     // Assignment
     barangay_id: { type: String, default: null },
+    barangay_name: { type: String, default: null },
     health_center_id: { type: String, default: null },
 
     is_active: { type: Boolean, default: true },
@@ -38,7 +39,7 @@ const userSchema = new mongoose.Schema(
 
 userSchema.index({ email: 1 }, { sparse: true });
 userSchema.index({ phone_number: 1 }, { sparse: true });
-userSchema.index({ tb_case_number: 1 }, { unique: true });
+userSchema.index({ tb_case_number: 1 }, { unique: true, sparse: true });
 userSchema.index({ patient_id: 1 }, { sparse: true });
 userSchema.index({ role: 1 });
 userSchema.index({ barangay_id: 1 });

@@ -71,6 +71,7 @@ export const createStaffSchema = Joi.object({
   email: emailField,
   password: passwordField,
   phone_number: phoneField(false),
+  barangay_name: Joi.string().optional().allow(null, ""), // 👈 add this
   barangay_id: Joi.string().when("role", {
     is: Joi.valid(ROLES.BARANGAY_ADMIN, ROLES.NURSE),
     then: Joi.string().optional(),

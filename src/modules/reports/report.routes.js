@@ -22,7 +22,7 @@ const SUPER_ADMIN_ONLY = [ROLES.SUPER_ADMIN];
 router.get(
   "/patient",
   authenticate,
-  authorizeRoles(ALL_STAFF),
+  authorizeRoles(...ALL_STAFF),
   validate(getPatientReportSchema, "query"),
   controller.getPatientReport
 );
@@ -30,7 +30,7 @@ router.get(
 router.get(
   "/barangay",
   authenticate,
-  authorizeRoles(ADMIN_AND_ABOVE),
+  authorizeRoles(...ADMIN_AND_ABOVE),
   validate(getBarangayReportSchema, "query"),
   controller.getBarangayReport
 );
@@ -38,7 +38,7 @@ router.get(
 router.get(
   "/city",
   authenticate,
-  authorizeRoles(SUPER_ADMIN_ONLY),
+  authorizeRoles(...SUPER_ADMIN_ONLY),
   validate(getCityReportSchema, "query"),
   controller.getCityReport
 );
@@ -46,7 +46,7 @@ router.get(
 router.get(
   "/compliance-trend",
   authenticate,
-  authorizeRoles(ALL_STAFF),
+  authorizeRoles(...ALL_STAFF),
   validate(getComplianceTrendSchema, "query"),
   controller.getComplianceTrend
 );
@@ -54,7 +54,7 @@ router.get(
 router.get(
   "/inventory",
   authenticate,
-  authorizeRoles(ALL_STAFF),
+  authorizeRoles(...ALL_STAFF),
   validate(getInventoryReportSchema, "query"),
   controller.getInventoryReport
 );
@@ -62,7 +62,7 @@ router.get(
 router.get(
   "/treatment-outcomes",
   authenticate,
-  authorizeRoles(ADMIN_AND_ABOVE),
+  authorizeRoles(...ADMIN_AND_ABOVE),
   validate(getTreatmentOutcomeSchema, "query"),
   controller.getTreatmentOutcomes
 );

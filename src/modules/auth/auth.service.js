@@ -34,7 +34,7 @@ async function issueTokens(user) {
     { refresh_token_hash: hashedRefresh, last_login: new Date() }
   );
 
-  return { accessToken, refreshToken, role: user.role };
+  return { accessToken, refreshToken, role: user.role, barangay_id: user.barangay_id || null, barangay_name: user.barangay_name || null, };
 }
 
 // ── Service Functions ─────────────────────────────────────
