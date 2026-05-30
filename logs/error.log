@@ -6,3 +6,5 @@
 
 [2026-05-27 23:45:30] error: [sputumReminder.job] Error: C0A0D90502000000:error:0A000438:SSL routines:ssl3_read_bytes:tlsv1 alert internal error:ssl/record/rec_layer_s3.c:918:SSL alert number 80
 
+[2026-05-30 18:00:00] error: [escalation.job] Error: EscalationLog validation failed: consecutive_missed_at_trigger: Path `consecutive_missed_at_trigger` is required.
+[2026-05-30 21:00:00] error: [escalation.job] Error: E11000 duplicate key error collection: tb_monitoring.alerts index: alert_id_1 dup key: { alert_id: "ALT-0006" }

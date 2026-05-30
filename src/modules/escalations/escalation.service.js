@@ -7,8 +7,6 @@ import { ESCALATION_LEVELS } from '../../constants/escalationLevels.js';
 import { ALERT_TYPES } from '../../constants/alertTypes.js';
 import { ROLES } from '../../constants/roles.js';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 function resolveEscalationLevel(consecutiveMissed) {
   if (consecutiveMissed >= ESCALATION_LEVELS.L3_THRESHOLD) return 3;
   if (consecutiveMissed >= ESCALATION_LEVELS.L2_THRESHOLD) return 2;
@@ -49,12 +47,20 @@ function alertTypeForLevel(level) {
 
 function buildAlertMessage(patient, level, consecutiveMissed) {
   const base = `Patient ${patient.tb_case_number} (${patient.full_name}) has missed ${consecutiveMissed} consecutive doses.`;
-  if (level === 3) return `${base} Patient is now classified as a Defaulter.`;
-  if (level === 2) return `${base} Barangay admin has been notified.`;
-  return `${base} Assigned nurse has been notified.`;
+  if (level === 3) return `${base} Patient is now classified as Lost to Follow-Up.`;
+  if (level === 2) return `${base} Patient is At Risk of Interruption. Barangay admin has been notified.`;
+  return `${base} Missed Dose Alert. Assigned nurse has been notified.`;
 }
 
-// ─── Service Functions ────────────────────────────────────────────────────────
+async function generateEscalationId() {
+  const count = await EscalationLog.countDocuments();
+  return `ESC-${String(count + 1).padStart(4, '0')}`;
+}
+
+async function generateAlertId() {
+  const count = await Alert.countDocuments();
+  return `ALT-${String(count + 1).padStart(4, '0')}`;
+}
 
 export async function triggerEscalation(patientId, consecutiveMissed) {
   const level = resolveEscalationLevel(consecutiveMissed);
@@ -80,7 +86,10 @@ export async function triggerEscalation(patientId, consecutiveMissed) {
     notified_at: now,
   }));
 
+  const escalationId = await generateEscalationId();
+
   const escalation = await EscalationLog.create({
+    escalation_id: escalationId,
     patient_id: patientId,
     tb_case_number: patient.tb_case_number,
     barangay_id: patient.barangay_id,
@@ -107,7 +116,10 @@ export async function triggerEscalation(patientId, consecutiveMissed) {
   );
 
   const alertMessage = buildAlertMessage(patient, level, consecutiveMissed);
+  const alertId = await generateAlertId();
+
   await Alert.create({
+    alert_id: alertId,
     patient_id: patientId,
     tb_case_number: patient.tb_case_number,
     barangay_id: patient.barangay_id,

@@ -12,9 +12,11 @@ export const createAlert = async (req, res) => {
 
 export const getAlerts = async (req, res) => {
   try {
-    const { page = 1, limit = 20, status, severity, alert_type, role } = req.query;
+    const { page = 1, limit = 50, status, severity, alert_type } = req.query;
+    const role = req.user.role;
+    const barangayId = req.query.barangay_id || req.user.barangay_id;
     const result = await service.getAlerts(
-      { status, severity, alert_type, role: role || req.user.role },
+      { status, severity, alert_type, role, barangay_id: barangayId },
       { page, limit },
     );
     return success(res, 'Alerts retrieved.', result);
@@ -82,6 +84,7 @@ export const checkEscalations = async (req, res) => {
     const result = await service.checkAndTriggerEscalations(barangayId);
     return success(res, 'Escalation check complete.', result);
   } catch (err) {
+    console.error('ESCALATION ERROR:', err);
     return error(res, err.message, 500);
   }
 };

@@ -10,20 +10,19 @@ const ESCALATION_META = {
     alert_type: "Escalation L1",
     severity: "Warning",
     target_roles: ["nurse"],
-    label: "missed 2 or more consecutive doses",
+    label: "missed 2 or more consecutive doses — Missed Dose Alert",
   },
   2: {
     alert_type: "Escalation L2",
     severity: "Warning",
     target_roles: ["nurse", "barangay_admin"],
-    label: "missed 5 or more consecutive doses",
+    label: "missed 7 or more consecutive doses — At Risk of Interruption",
   },
   3: {
     alert_type: "Escalation L3",
     severity: "Critical",
     target_roles: ["nurse", "barangay_admin", "super_admin"],
-    label:
-      "missed 14 or more consecutive doses and is classified as a Defaulter",
+    label: "missed 30 or more consecutive doses and is classified as Lost to Follow-Up",
   },
 };
 
