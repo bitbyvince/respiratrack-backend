@@ -6,8 +6,9 @@ import { computeRiskScore } from '../../utils/riskScoring.js';
 import { computeCompliance } from '../../utils/complianceCalculator.js';
 import { exportPatientListPdf } from '../../utils/pdfExporter.js';
 import ROLES from '../../constants/roles.js';
+import bcrypt from 'bcryptjs';
+import { v4 as uuidv4 } from 'uuid';
 
-// ── PAGINATION ───────────────────────────────────────────
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 
@@ -18,29 +19,29 @@ const getPagination = (query) => {
   return { page, limit, skip };
 };
 
-// ── BARANGAY SCOPE GUARD ─────────────────────────────────
 const assertSameBarangay = (requester, targetBarangayId) => {
   if (requester.role !== ROLES.SUPER_ADMIN && requester.barangay_id !== targetBarangayId) {
     throw createError(403, 'Access denied. Patient belongs to a different barangay.');
   }
 };
 
-// ── GENERATE SEQUENTIAL PATIENT ID ──────────────────────
 const generatePatientId = async () => {
-  const latest = await Patient.findOne().sort({ created_at: -1 }).select('patient_id');
+  const latest = await Patient.findOne(
+    { patient_id: { $regex: '^PT-' } },
+    { patient_id: 1 }
+  ).sort({ patient_id: -1 });
+
   if (!latest) return 'PT-0001';
-  const num = parseInt(latest.patient_id.split('-')[1]) + 1;
-  return `PT-${String(num).padStart(4, '0')}`;
+  const num = parseInt(latest.patient_id.split('-')[1], 10);
+  return `PT-${String(num + 1).padStart(4, '0')}`;
 };
 
-// ── COMPUTE TREATMENT END DATE ───────────────────────────
 const computeEndDate = (dateStarted, durationMonths) => {
   const end = new Date(dateStarted);
   end.setMonth(end.getMonth() + durationMonths);
   return end;
 };
 
-// ── BUILD SPUTUM SCHEDULE ────────────────────────────────
 const buildSputumSchedule = (dateStarted) => {
   return [2, 5, 6].map((month) => {
     const due = new Date(dateStarted);
@@ -49,7 +50,6 @@ const buildSputumSchedule = (dateStarted) => {
   });
 };
 
-// ── TREATMENT DAY COUNTER ────────────────────────────────
 const computeTreatmentDay = (dateStarted) => {
   const today = new Date();
   const start = new Date(dateStarted);
@@ -57,9 +57,6 @@ const computeTreatmentDay = (dateStarted) => {
   return Math.max(diff + 1, 1);
 };
 
-// ================================================================
-// LIST & SEARCH PATIENTS
-// ================================================================
 export const listPatients = async (filters = {}) => {
   const { page, limit, skip } = getPagination(filters);
 
@@ -85,28 +82,24 @@ export const listPatients = async (filters = {}) => {
   return { patients, total, page, limit };
 };
 
-// ================================================================
-// GET PATIENT BY ID
-// ================================================================
 export const getPatientById = async (patientId, requester) => {
-  const patient = await Patient.findOne({ patient_id: patientId });
+  const isMongoId = /^[a-f\d]{24}$/i.test(patientId);
+  const patient = await Patient.findOne(
+    isMongoId
+      ? { $or: [{ patient_id: patientId }, { _id: patientId }] }
+      : { patient_id: patientId }
+  );
   if (!patient) throw createError(404, 'Patient not found.');
   assertSameBarangay(requester, patient.barangay_id);
   return patient;
 };
 
-// ================================================================
-// GET PATIENT BY USER ID (mobile self-view)
-// ================================================================
 export const getPatientByUserId = async (userId) => {
   const patient = await Patient.findOne({ user_id: userId });
   if (!patient) throw createError(404, 'No patient record linked to this account.');
   return patient;
 };
 
-// ================================================================
-// REGISTER PATIENT
-// ================================================================
 export const registerPatient = async (data, requester) => {
   const existingPhone = await Patient.findOne({ phone_number: data.phone_number });
   if (existingPhone) throw createError(409, 'A patient with this phone number already exists.');
@@ -121,6 +114,12 @@ export const registerPatient = async (data, requester) => {
   const tbCaseNumber = await generateCaseNumber();
   const endDate = computeEndDate(data.date_started, 6);
   const sputumSchedule = buildSputumSchedule(data.date_started);
+
+  const defaultPin = Math.floor(1000 + Math.random() * 9000).toString();
+  const pinHash = await bcrypt.hash(defaultPin, 12);
+  const userId = uuidv4();
+
+  const nameParts = [data.first_name, data.middle_name, data.last_name].filter(Boolean);
 
   const initialCompliance = {
     total_doses_required: 168,
@@ -148,12 +147,12 @@ export const registerPatient = async (data, requester) => {
   const patient = new Patient({
     patient_id: patientId,
     tb_case_number: tbCaseNumber,
-    user_id: null,
+    user_id: userId,
     registered_by: requester.user_id,
     last_name: data.last_name,
     first_name: data.first_name,
     middle_name: data.middle_name || '',
-    full_name: `${data.first_name} ${data.middle_name || ''} ${data.last_name}`.trim(),
+    full_name: nameParts.join(' '),
     birth_date: new Date(data.birth_date),
     age: data.age,
     sex: data.sex,
@@ -164,8 +163,7 @@ export const registerPatient = async (data, requester) => {
     barangay_name: data.barangay_name,
     health_center_id: requester.health_center_id,
     health_center_name: data.health_center_name,
-    assigned_nurse_id:
-      requester.role === ROLES.NURSE ? requester.user_id : data.assigned_nurse_id || null,
+    assigned_nurse_id: requester.role === ROLES.NURSE ? requester.user_id : data.assigned_nurse_id || null,
     diagnosis: data.diagnosis,
     date_of_diagnosis: new Date(data.date_of_diagnosis),
     classification: data.classification,
@@ -213,12 +211,25 @@ export const registerPatient = async (data, requester) => {
   });
 
   await patient.save();
-  return patient;
+
+  await User.create({
+    user_id: userId,
+    role: 'patient',
+    first_name: data.first_name,
+    last_name: data.last_name,
+    email: data.email || null,
+    phone_number: data.phone_number || null,
+    tb_case_number: tbCaseNumber,
+    patient_id: patientId,
+    pin_hash: pinHash,
+    barangay_id: requester.barangay_id,
+    health_center_id: requester.health_center_id,
+    is_active: true,
+  });
+
+  return { patient, defaultPin };
 };
 
-// ================================================================
-// UPDATE PATIENT
-// ================================================================
 export const updatePatient = async (patientId, data, requester) => {
   const patient = await Patient.findOne({ patient_id: patientId });
   if (!patient) throw createError(404, 'Patient not found.');
@@ -276,9 +287,6 @@ export const updatePatient = async (patientId, data, requester) => {
   return updated;
 };
 
-// ================================================================
-// UPDATE TREATMENT OUTCOME
-// ================================================================
 export const updateTreatmentOutcome = async (patientId, data, requester) => {
   const patient = await Patient.findOne({ patient_id: patientId });
   if (!patient) throw createError(404, 'Patient not found.');
@@ -305,9 +313,6 @@ export const updateTreatmentOutcome = async (patientId, data, requester) => {
   return updated;
 };
 
-// ================================================================
-// UPDATE SPUTUM SCHEDULE
-// ================================================================
 export const updateSputumSchedule = async (patientId, data, requester) => {
   const patient = await Patient.findOne({ patient_id: patientId });
   if (!patient) throw createError(404, 'Patient not found.');
@@ -333,9 +338,6 @@ export const updateSputumSchedule = async (patientId, data, requester) => {
   return updated;
 };
 
-// ================================================================
-// DEACTIVATE / REACTIVATE
-// ================================================================
 export const setPatientActiveStatus = async (patientId, isActive, requester) => {
   const patient = await Patient.findOne({ patient_id: patientId });
   if (!patient) throw createError(404, 'Patient not found.');
@@ -347,9 +349,6 @@ export const setPatientActiveStatus = async (patientId, isActive, requester) => 
   );
 };
 
-// ================================================================
-// EXPORT PDF
-// ================================================================
 export const exportPatientsPdf = async (filters = {}) => {
   const query = {
     ...(filters.barangay_id && { barangay_id: filters.barangay_id }),
@@ -364,9 +363,6 @@ export const exportPatientsPdf = async (filters = {}) => {
   return await exportPatientListPdf(patients);
 };
 
-// ================================================================
-// LINK MOBILE ACCOUNT TO PATIENT RECORD
-// ================================================================
 export const linkUserAccount = async (patientId, userId) => {
   const patient = await Patient.findOne({ patient_id: patientId });
   if (!patient) throw createError(404, 'Patient not found.');
@@ -379,9 +375,6 @@ export const linkUserAccount = async (patientId, userId) => {
   );
 };
 
-// ================================================================
-// RECOMPUTE COMPLIANCE & RISK SCORE
-// ================================================================
 export const recomputePatientCompliance = async (patientId) => {
   const patient = await Patient.findOne({ patient_id: patientId });
   if (!patient) throw createError(404, 'Patient not found.');
@@ -398,4 +391,29 @@ export const recomputePatientCompliance = async (patientId) => {
     { patient_id: patientId },
     { compliance: updatedCompliance, risk_score: updatedRiskScore, updated_at: new Date() },
   );
+};
+
+export const updatePatientStatus = async (patientId, status, requester) => {
+  const patient = await Patient.findOne({ patient_id: patientId });
+  if (!patient) throw createError(404, 'Patient not found.');
+  assertSameBarangay(requester, patient.barangay_id);
+
+  const outcomeStatus =
+    status === 'Completed' ? 'Treatment Completed' :
+    status === 'Defaulted' ? 'Lost to Follow-Up' :
+    'On Treatment';
+
+  const updated = await Patient.findOneAndUpdate(
+    { patient_id: patientId },
+    {
+      'treatment_outcome.status': outcomeStatus,
+      'treatment_outcome.date_of_outcome': status !== 'Active' ? new Date() : null,
+      'treatment_outcome.recorded_by': requester.user_id,
+      is_active: status === 'Active',
+      updated_at: new Date(),
+    },
+    { new: true },
+  );
+
+  return updated;
 };

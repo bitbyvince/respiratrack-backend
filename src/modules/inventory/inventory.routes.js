@@ -19,7 +19,7 @@ const ADMIN_AND_ABOVE = [ROLES.SUPER_ADMIN, ROLES.BARANGAY_ADMIN];
 router.get(
   "/",
   authenticate,
-  authorizeRoles(ALL_STAFF),
+  authorizeRoles(...ALL_STAFF),
   validate(getInventorySchema, "query"),
   controller.listInventory
 );
@@ -27,14 +27,14 @@ router.get(
 router.get(
   "/grouped",
   authenticate,
-  authorizeRoles(ADMIN_AND_ABOVE),
+  authorizeRoles(...ADMIN_AND_ABOVE),
   controller.getInventoryGrouped
 );
 
 router.get(
   "/low-stock",
   authenticate,
-  authorizeRoles(ALL_STAFF),
+  authorizeRoles(...ALL_STAFF),
   validate(getLowStockSchema, "query"),
   controller.getLowStock
 );
@@ -42,7 +42,7 @@ router.get(
 router.get(
   "/stockout-predictions",
   authenticate,
-  authorizeRoles(ALL_STAFF),
+  authorizeRoles(...ALL_STAFF),
   validate(getStockoutPredictionSchema, "query"),
   controller.getStockoutPredictions
 );
@@ -50,14 +50,14 @@ router.get(
 router.get(
   "/:inventoryId",
   authenticate,
-  authorizeRoles(ALL_STAFF),
+  authorizeRoles(...ALL_STAFF),
   controller.getInventoryItem
 );
 
 router.patch(
   "/:inventoryId/adjust",
   authenticate,
-  authorizeRoles(ADMIN_AND_ABOVE),
+  authorizeRoles(...ADMIN_AND_ABOVE),
   validate(adjustStockSchema),
   controller.adjustStock
 );

@@ -13,7 +13,22 @@ export const loginSchema = Joi.object({
 
 export const patientLoginSchema = Joi.object({
   identifier: Joi.string().required().messages({
-    "any.required": "Please provide your TB case number, phone number, or email.",
+    "any.required": "Please provide your Patient ID, TB case number, phone number, or email.",
+  }),
+  pin: Joi.string()
+    .length(4)
+    .pattern(/^\d{4}$/)
+    .required()
+    .messages({
+      "string.length": "PIN must be exactly 4 digits.",
+      "string.pattern.base": "PIN must contain only numbers.",
+      "any.required": "PIN is required.",
+    }),
+});
+
+export const setPatientPinSchema = Joi.object({
+  patient_id: Joi.string().required().messages({
+    "any.required": "Patient ID is required.",
   }),
   pin: Joi.string()
     .length(4)

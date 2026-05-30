@@ -1,5 +1,3 @@
-// src/middleware/validate.middleware.js
-
 import Joi from "joi";
 
 const VALID_SOURCES = ["body", "query", "params", "headers"];
@@ -15,20 +13,26 @@ export const validate = (schema, source = "body") => {
       stripUnknown: true,
     });
 
-    if (error) {
-      return res.status(400).json({
-        success: false,
-        code: "VALIDATION_FAILED",
-        message: "Request validation failed.",
-        errors: error.details.map((detail) => ({
-          message: detail.message,
-          path: detail.path,
-          type: detail.type,
-        })),
-      });
+if (error) {
+  console.log('❌ VALIDATION ERROR:', JSON.stringify(error.details, null, 2)); // ← add here
+  return res.status(400).json({
+    success: false,
+    code: "VALIDATION_FAILED",
+    message: "Request validation failed.",
+    errors: error.details.map((detail) => ({
+      message: detail.message,
+      path: detail.path,
+      type: detail.type,
+    })),
+  });
+}
+
+    if (location === "query" || location === "params" || location === "headers") {
+      Object.assign(req[location], value);
+    } else {
+      req[location] = value;
     }
 
-    req[location] = value;
     return next();
   };
 };

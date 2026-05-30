@@ -17,12 +17,10 @@ const router = Router();
 const ALL_ROLES = [ROLES.SUPER_ADMIN, ROLES.BARANGAY_ADMIN, ROLES.NURSE, ROLES.PATIENT];
 const ADMIN_AND_ABOVE = [ROLES.SUPER_ADMIN, ROLES.BARANGAY_ADMIN];
 
-// ─── FCM Token Registration ───────────────────────────────────────────────────
-
 router.post(
   "/token",
   authenticate,
-  authorizeRoles(ALL_ROLES),
+  authorizeRoles(...ALL_ROLES),
   validate(registerTokenSchema),
   controller.registerToken
 );
@@ -30,16 +28,14 @@ router.post(
 router.delete(
   "/token",
   authenticate,
-  authorizeRoles(ALL_ROLES),
+  authorizeRoles(...ALL_ROLES),
   controller.removeToken
 );
-
-// ─── Sending ──────────────────────────────────────────────────────────────────
 
 router.post(
   "/send",
   authenticate,
-  authorizeRoles(ADMIN_AND_ABOVE),
+  authorizeRoles(...ADMIN_AND_ABOVE),
   validate(sendNotificationSchema),
   controller.sendNotification
 );
@@ -47,17 +43,22 @@ router.post(
 router.post(
   "/broadcast",
   authenticate,
-  authorizeRoles(ADMIN_AND_ABOVE),
+  authorizeRoles(...ADMIN_AND_ABOVE),
   validate(sendBroadcastSchema),
   controller.broadcastNotification
 );
 
-// ─── Reading & Status ─────────────────────────────────────────────────────────
+router.post(
+  "/nurse-log",
+  authenticate,
+  authorizeRoles(ROLES.SUPER_ADMIN, ROLES.BARANGAY_ADMIN, ROLES.NURSE),
+  controller.logNurseNotification
+);
 
 router.get(
   "/",
   authenticate,
-  authorizeRoles(ALL_ROLES),
+  authorizeRoles(...ALL_ROLES),
   validate(getNotificationsSchema, "query"),
   controller.listNotifications
 );
@@ -65,14 +66,14 @@ router.get(
 router.get(
   "/unread-count",
   authenticate,
-  authorizeRoles(ALL_ROLES),
+  authorizeRoles(...ALL_ROLES),
   controller.getUnreadCount
 );
 
 router.patch(
   "/mark-read",
   authenticate,
-  authorizeRoles(ALL_ROLES),
+  authorizeRoles(...ALL_ROLES),
   validate(markReadSchema),
   controller.markRead
 );
@@ -80,8 +81,15 @@ router.patch(
 router.patch(
   "/mark-all-read",
   authenticate,
-  authorizeRoles(ALL_ROLES),
+  authorizeRoles(...ALL_ROLES),
   controller.markAllRead
+);
+
+router.delete(
+  "/:id",
+  authenticate,
+  authorizeRoles(...ALL_ROLES),
+  controller.deleteNotification
 );
 
 export default router;

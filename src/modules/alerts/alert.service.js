@@ -1,5 +1,6 @@
 import Alert from '../../models/Alert.model.js';
 import Patient from '../../models/Patient.model.js';
+import { triggerEscalation } from '../escalations/escalation.service.js';
 
 const VALID_ALERT_TYPES = [
   'Missed Dose',
@@ -182,4 +183,20 @@ export const createSystemAlert = async ({
     severity,
     target_roles,
   });
+};
+
+export const checkAndTriggerEscalations = async (barangayId) => {
+  const patients = await Patient.find({
+    barangay_id: barangayId,
+    is_active: true,
+  });
+
+  const results = await Promise.allSettled(
+    patients
+      .filter((p) => p.compliance?.consecutive_missed_doses > 0)
+      .map((p) => triggerEscalation(p.patient_id, p.compliance.consecutive_missed_doses))
+  );
+
+  const triggered = results.filter((r) => r.status === 'fulfilled' && r.value?.created).length;
+  return { checked: patients.length, triggered };
 };

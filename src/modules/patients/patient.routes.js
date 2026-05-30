@@ -14,94 +14,72 @@ import {
 
 const router = Router();
 
-// ── All routes require authentication ────────────────────
 router.use(authMiddleware);
 
-// ================================================================
-// LIST & SEARCH
-// ================================================================
 router.get(
   '/',
-  roleMiddleware([ROLES.SUPER_ADMIN, ROLES.BARANGAY_ADMIN, ROLES.NURSE]),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.BARANGAY_ADMIN, ROLES.NURSE),
   validate(listPatientsSchema, 'query'),
   patientController.listPatients,
 );
 
-// ================================================================
-// PATIENT SELF-VIEW (mobile app)
-// ================================================================
-router.get('/me', roleMiddleware([ROLES.PATIENT]), patientController.getMyPatientProfile);
+router.get('/me', roleMiddleware(ROLES.PATIENT), patientController.getMyPatientProfile);
 
-// ================================================================
-// SINGLE PATIENT
-// ================================================================
 router.get(
   '/:patient_id',
-  roleMiddleware([ROLES.SUPER_ADMIN, ROLES.BARANGAY_ADMIN, ROLES.NURSE]),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.BARANGAY_ADMIN, ROLES.NURSE),
   patientController.getPatient,
 );
 
-// ================================================================
-// REGISTER NEW PATIENT
-// ================================================================
 router.post(
   '/',
-  roleMiddleware([ROLES.BARANGAY_ADMIN, ROLES.NURSE]),
+  roleMiddleware(ROLES.BARANGAY_ADMIN, ROLES.NURSE),
   validate(registerPatientSchema),
   patientController.registerPatient,
 );
 
-// ================================================================
-// UPDATE PATIENT INFO
-// ================================================================
 router.patch(
   '/:patient_id',
-  roleMiddleware([ROLES.BARANGAY_ADMIN, ROLES.NURSE, ROLES.SUPER_ADMIN]),
+  roleMiddleware(ROLES.BARANGAY_ADMIN, ROLES.NURSE, ROLES.SUPER_ADMIN),
   validate(updatePatientSchema),
   patientController.updatePatient,
 );
 
-// ================================================================
-// TREATMENT OUTCOME
-// ================================================================
+router.patch(
+  '/:patient_id/status',
+  roleMiddleware(ROLES.BARANGAY_ADMIN, ROLES.NURSE, ROLES.SUPER_ADMIN),
+  patientController.updatePatientStatus,
+);
+
 router.patch(
   '/:patient_id/outcome',
-  roleMiddleware([ROLES.BARANGAY_ADMIN, ROLES.SUPER_ADMIN]),
+  roleMiddleware(ROLES.BARANGAY_ADMIN, ROLES.SUPER_ADMIN),
   validate(updateTreatmentOutcomeSchema),
   patientController.updateTreatmentOutcome,
 );
 
-// ================================================================
-// SPUTUM TEST SCHEDULE
-// ================================================================
 router.patch(
   '/:patient_id/sputum-schedule',
-  roleMiddleware([ROLES.BARANGAY_ADMIN, ROLES.NURSE]),
+  roleMiddleware(ROLES.BARANGAY_ADMIN, ROLES.NURSE),
   validate(updateSputumScheduleSchema),
   patientController.updateSputumSchedule,
 );
 
-// ================================================================
-// DEACTIVATE / REACTIVATE
-// ================================================================
 router.patch(
   '/:patient_id/deactivate',
-  roleMiddleware([ROLES.BARANGAY_ADMIN, ROLES.SUPER_ADMIN]),
+  roleMiddleware(ROLES.BARANGAY_ADMIN, ROLES.SUPER_ADMIN),
   patientController.deactivatePatient,
 );
 
 router.patch(
   '/:patient_id/reactivate',
-  roleMiddleware([ROLES.BARANGAY_ADMIN, ROLES.SUPER_ADMIN]),
+  roleMiddleware(ROLES.BARANGAY_ADMIN, ROLES.SUPER_ADMIN),
   patientController.reactivatePatient,
 );
 
-// ================================================================
-// EXPORT
-// ================================================================
 router.get(
   '/export/pdf',
-  roleMiddleware([ROLES.SUPER_ADMIN, ROLES.BARANGAY_ADMIN]),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.BARANGAY_ADMIN),
   patientController.exportPatientsPdf,
 );
 

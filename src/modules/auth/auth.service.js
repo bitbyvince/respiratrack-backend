@@ -1,10 +1,9 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../../models/User.model.js";
+import Barangay from "../../models/Barangay.model.js";
 import { createError } from "../../utils/apiResponse.js";
 import firebaseAdmin from "../../config/firebase.js";
-
-// ── Helpers ───────────────────────────────────────────────
 
 const signAccessToken = (payload) =>
   jwt.sign(payload, process.env.JWT_ACCESS_SECRET, {
@@ -37,23 +36,19 @@ async function issueTokens(user) {
   return { accessToken, refreshToken, role: user.role };
 }
 
-// ── Service Functions ─────────────────────────────────────
-
 export async function staffLogin(email, password) {
   const user = await User.findOne({ email, is_active: true });
-
   if (!user) throw createError(401, "Invalid email or password.");
   if (user.role === "patient") throw createError(403, "Please use the patient login.");
-
   const isMatch = await bcrypt.compare(password, user.password_hash);
   if (!isMatch) throw createError(401, "Invalid email or password.");
-
   return issueTokens(user);
 }
 
 export async function patientLogin(identifier, pin) {
   const user = await User.findOne({
     $or: [
+      { patient_id: identifier },
       { tb_case_number: identifier },
       { phone_number: identifier },
       { email: identifier },
@@ -61,13 +56,20 @@ export async function patientLogin(identifier, pin) {
     role: "patient",
     is_active: true,
   });
-
   if (!user) throw createError(401, "Invalid credentials.");
-
   const isMatch = await bcrypt.compare(pin, user.pin_hash);
   if (!isMatch) throw createError(401, "Invalid credentials.");
-
   return issueTokens(user);
+}
+
+export async function setPatientPin(patientId, pin) {
+  const user = await User.findOne({ patient_id: patientId, role: "patient" });
+  if (!user) throw createError(404, "Patient not found.");
+  const hashed = await bcrypt.hash(pin, 12);
+  await User.findOneAndUpdate(
+    { patient_id: patientId },
+    { pin_hash: hashed, updated_at: new Date() }
+  );
 }
 
 export async function rotateRefreshToken(incomingRefreshToken) {
@@ -77,16 +79,12 @@ export async function rotateRefreshToken(incomingRefreshToken) {
   } catch {
     throw createError(401, "Refresh token is invalid or expired.");
   }
-
   const user = await User.findOne({ user_id: decoded.user_id, is_active: true });
-
   if (!user || !user.refresh_token_hash) {
     throw createError(401, "Session expired. Please log in again.");
   }
-
   const isValid = await bcrypt.compare(incomingRefreshToken, user.refresh_token_hash);
   if (!isValid) throw createError(401, "Refresh token mismatch. Possible token reuse.");
-
   return issueTokens(user);
 }
 
@@ -98,10 +96,8 @@ export async function changePassword(userId, currentPassword, newPassword) {
   const user = await User.findOne({ user_id: userId });
   if (!user) throw createError(404, "User not found.");
   if (user.role === "patient") throw createError(403, "Patients use a PIN, not a password.");
-
   const isMatch = await bcrypt.compare(currentPassword, user.password_hash);
   if (!isMatch) throw createError(400, "Current password is incorrect.");
-
   const hashed = await bcrypt.hash(newPassword, 12);
   await User.findOneAndUpdate(
     { user_id: userId },
@@ -113,10 +109,8 @@ export async function changePin(userId, currentPin, newPin) {
   const user = await User.findOne({ user_id: userId });
   if (!user) throw createError(404, "User not found.");
   if (user.role !== "patient") throw createError(403, "Only patients use a PIN.");
-
   const isMatch = await bcrypt.compare(currentPin, user.pin_hash);
   if (!isMatch) throw createError(400, "Current PIN is incorrect.");
-
   const hashed = await bcrypt.hash(newPin, 12);
   await User.findOneAndUpdate(
     { user_id: userId },
@@ -127,7 +121,6 @@ export async function changePin(userId, currentPin, newPin) {
 export async function requestOtp(phoneNumber) {
   const user = await User.findOne({ phone_number: phoneNumber, is_active: true });
   if (!user) throw createError(404, "No active account found with this phone number.");
-
   return { message: "Phone number verified. Proceed with Firebase OTP." };
 }
 
@@ -138,14 +131,11 @@ export async function verifyOtp(phoneNumber, firebaseIdToken) {
   } catch {
     throw createError(400, "OTP verification failed. Token is invalid.");
   }
-
   if (decoded.phone_number !== phoneNumber) {
     throw createError(400, "Phone number does not match the verified token.");
   }
-
   const user = await User.findOne({ phone_number: phoneNumber, is_active: true });
   if (!user) throw createError(404, "User not found.");
-
   return issueTokens(user);
 }
 
@@ -154,5 +144,21 @@ export async function getMe(userId) {
     "-password_hash -pin_hash -refresh_token_hash"
   );
   if (!user) throw createError(404, "User not found.");
-  return user;
+
+  const userObj = user.toObject();
+  userObj.full_name = `${userObj.first_name} ${userObj.last_name}`.trim();
+
+  if (userObj.barangay_id) {
+    try {
+      const barangay = await Barangay.findOne(
+        { barangay_id: userObj.barangay_id },
+        { barangay_id: 1, name: 1, municipality: 1, health_center: 1 }
+      ).lean();
+      if (barangay) {
+        userObj.barangay_id = barangay;
+      }
+    } catch (_) {}
+  }
+
+  return userObj;
 }
