@@ -16,6 +16,12 @@ const router = express.Router();
 
 router.use(authenticate);
 
+router.patch(
+  '/patients/:patient_id/reset-pin',
+  authorizeRoles(ROLES.SUPER_ADMIN, ROLES.BARANGAY_ADMIN, ROLES.NURSE),
+  userController.resetPatientPin,
+);
+
 router.get(
   "/staff",
   authorizeRoles(ROLES.SUPER_ADMIN, ROLES.BARANGAY_ADMIN),

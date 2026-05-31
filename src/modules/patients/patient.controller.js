@@ -36,10 +36,10 @@ export const getPatient = async (req, res) => {
 
 export const registerPatient = async (req, res) => {
   try {
-    const patient = await patientService.registerPatient(req.body, req.user);
-    return sendSuccess(res, 'Patient registered successfully.', patient, 201);
+    const { patient, defaultPin } = await patientService.registerPatient(req.body, req.user);
+    return sendSuccess(res, 'Patient registered successfully.', { patient, defaultPin }, 201);
   } catch (err) {
-    console.error('registerPatient error:', err); // ← add
+    console.error('registerPatient full error:', err);
     return sendError(res, err);
   }
 };

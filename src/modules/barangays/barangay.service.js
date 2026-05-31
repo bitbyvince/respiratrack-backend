@@ -5,11 +5,14 @@ const Barangay = BarangayModule.default || BarangayModule;
 
 // ── Compute real stats from patients collection ────────────
 const computeBarangayStats = async (barangayId) => {
-  const [total_patients, at_risk_count, defaulter_count, compliant_count] = await Promise.all([
+  const [total_patients, at_risk_count, defaulter_count, compliant_count, level_1, level_2, level_3] = await Promise.all([
     Patient.countDocuments({ barangay_id: barangayId, is_active: true }),
     Patient.countDocuments({ barangay_id: barangayId, is_active: true, 'compliance.risk_level': 'At Risk' }),
     Patient.countDocuments({ barangay_id: barangayId, is_active: true, 'compliance.risk_level': 'Defaulter' }),
     Patient.countDocuments({ barangay_id: barangayId, is_active: true, 'compliance.risk_level': 'Compliant' }),
+    Patient.countDocuments({ barangay_id: barangayId, is_active: true, 'escalation.level': 1 }),
+    Patient.countDocuments({ barangay_id: barangayId, is_active: true, 'escalation.level': 2 }),
+    Patient.countDocuments({ barangay_id: barangayId, is_active: true, 'escalation.level': 3 }),
   ]);
 
   const compliance_percentage = total_patients > 0
@@ -22,6 +25,7 @@ const computeBarangayStats = async (barangayId) => {
     defaulter_count,
     compliant_count,
     compliance_percentage,
+    escalation_counts: { level_1, level_2, level_3 },
   };
 };
 
@@ -96,3 +100,4 @@ export async function updateBarangay(barangayId, data) {
 
   return barangay;
 }
+

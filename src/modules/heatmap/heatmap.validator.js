@@ -17,7 +17,7 @@ export const getBarangayDetailSchema = Joi.object({
 });
 
 export const getHeatmapHistorySchema = Joi.object({
-  barangay_id: Joi.string().required(),
+  barangay_id: Joi.string().optional(), // ← make optional since it's in the URL
   period: Joi.string().valid("daily", "monthly", "all_time").default("monthly"),
   from: Joi.date().iso().optional(),
   to: Joi.date().iso().optional(),

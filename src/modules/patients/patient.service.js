@@ -1,3 +1,4 @@
+import bcrypt from 'bcryptjs';
 import Patient from '../../models/Patient.model.js';
 import User from '../../models/User.model.js';
 import { createError } from '../../utils/apiResponse.js';
@@ -33,6 +34,14 @@ const generatePatientId = async () => {
   return `PT-${String(num).padStart(4, '0')}`;
 };
 
+const generateUserId = async () => {
+  const users = await User.find({}, 'user_id').lean();
+  if (!users.length) return 'USR-0001';
+  const nums = users.map(u => parseInt(u.user_id?.split('-')[1])).filter(n => !isNaN(n));
+  const max = Math.max(...nums);
+  return `USR-${String(max + 1).padStart(4, '0')}`;
+};
+
 // ── COMPUTE TREATMENT END DATE ───────────────────────────
 const computeEndDate = (dateStarted, durationMonths) => {
   const end = new Date(dateStarted);
@@ -64,18 +73,19 @@ export const listPatients = async (filters = {}) => {
   const { page, limit, skip } = getPagination(filters);
 
   const query = {
-    ...(filters.barangay_id && { barangay_id: filters.barangay_id }),
-    ...(filters.risk_level && { 'compliance.risk_level': filters.risk_level }),
-    ...(filters.treatment_phase && { treatment_phase: filters.treatment_phase }),
-    ...(filters.is_active !== undefined && { is_active: filters.is_active === 'true' }),
-    ...(filters.search && {
-      $or: [
-        { full_name: { $regex: filters.search, $options: 'i' } },
-        { tb_case_number: { $regex: filters.search, $options: 'i' } },
-        { patient_id: { $regex: filters.search, $options: 'i' } },
-      ],
-    }),
-  };
+  ...(filters.barangay_id && { barangay_id: filters.barangay_id }),
+  ...(filters.risk_level && { 'compliance.risk_level': filters.risk_level }),
+  ...(filters.escalation_level !== undefined && { 'escalation.level': parseInt(filters.escalation_level) }),
+  ...(filters.treatment_phase && { treatment_phase: filters.treatment_phase }),
+  ...(filters.is_active !== undefined && { is_active: filters.is_active === 'true' }),
+  ...(filters.search && {
+    $or: [
+      { full_name: { $regex: filters.search, $options: 'i' } },
+      { tb_case_number: { $regex: filters.search, $options: 'i' } },
+      { patient_id: { $regex: filters.search, $options: 'i' } },
+    ],
+  }),
+};
 
   const [patients, total] = await Promise.all([
     Patient.find(query).skip(skip).limit(limit).sort({ created_at: -1 }),
@@ -213,7 +223,33 @@ health_center_name: requester.role === ROLES.SUPER_ADMIN ? data.health_center_na
   });
 
   await patient.save();
-  return patient;
+
+  const defaultPin = Math.floor(1000 + Math.random() * 9000).toString();
+  const pinHash = await bcrypt.hash(defaultPin, 12);
+  const mobileUserId = await generateUserId();
+
+  const mobileUser = new User({
+    user_id: mobileUserId,
+    role: 'patient',
+    first_name: data.first_name,
+    last_name: data.last_name,
+    phone_number: data.phone_number,
+    tb_case_number: tbCaseNumber,
+    pin_hash: pinHash,
+    patient_id: patientId,
+    barangay_id: patient.barangay_id,
+    health_center_id: patient.health_center_id,
+    is_active: true,
+  });
+
+  await mobileUser.save();
+
+  await Patient.findOneAndUpdate(
+    { patient_id: patientId },
+    { user_id: mobileUserId, updated_at: new Date() },
+  );
+
+  return { patient, defaultPin };
 };
 
 // ================================================================

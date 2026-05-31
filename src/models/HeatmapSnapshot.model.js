@@ -19,13 +19,7 @@ const escalationCountsSchema = new mongoose.Schema(
 
 const heatmapSnapshotSchema = new mongoose.Schema(
   {
-    snapshot_id: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-      // Format: HMAP-XXXX
-    },
+    
 
     snapshot_date: {
       type: Date,

@@ -88,6 +88,7 @@ async function updatePatientCompliance(patient, overall_status, logDate) {
       $set: {
         "compliance.doses_taken": takenLogs,
         "compliance.doses_missed": totalLogs - takenLogs,
+        "compliance.doses_remaining": patient.compliance.total_doses_required - takenLogs,
         "compliance.compliance_percentage": parseFloat(compliance_percentage.toFixed(2)),
         "compliance.consecutive_missed_doses": consecutive_missed_doses,
         "compliance.risk_level": risk_level,

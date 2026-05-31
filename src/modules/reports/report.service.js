@@ -8,6 +8,8 @@ import ComplianceSnapshot from "../../models/ComplianceSnapshot.model.js";
 import EscalationLog from "../../models/EscalationLog.model.js";
 import Inventory from "../../models/Inventory.model.js";
 import Barangay from "../../models/Barangay.model.js";
+import HeatmapSnapshot from "../../models/HeatmapSnapshot.model.js";
+
 import {
   generatePatientPDF,
   generateBarangayPDF,
@@ -312,13 +314,7 @@ export async function buildCityReport(options = {}) {
   };
 }
 
-export async function getComplianceTrend(
-  barangayId,
-  period = "monthly",
-  from,
-  to,
-  limit = 30,
-) {
+export async function getComplianceTrend(barangayId, period = "monthly", from, to, limit = 30) {
   const filter = { period };
   if (barangayId) filter.barangay_id = barangayId;
   if (from || to) {
@@ -326,12 +322,12 @@ export async function getComplianceTrend(
     if (from) filter.snapshot_date.$gte = new Date(from);
     if (to) filter.snapshot_date.$lte = new Date(to);
   }
-  const snapshots = await ComplianceSnapshot.find(filter)
+
+  const snapshots = await HeatmapSnapshot.find(filter)
     .sort({ snapshot_date: -1 })
     .limit(limit)
-    .select(
-      "barangay_id barangay_name snapshot_date compliance_percentage compliant_count at_risk_count defaulter_count average_risk_score total_patients",
-    );
+    .select("barangay_id barangay_name snapshot_date compliance_rate at_risk_count defaulter_count active_cases");
+
   return snapshots.reverse();
 }
 

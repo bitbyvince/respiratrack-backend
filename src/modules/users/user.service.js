@@ -324,3 +324,20 @@ export const updateMyProfile = async (userId, data) => {
     { new: true },
   ).select(HIDDEN_FIELDS);
 };
+
+export const resetPatientPin = async (patientId, requester) => {
+  const user = await User.findOne({ patient_id: patientId, role: ROLES.PATIENT });
+  if (!user) throw createError(404, 'No mobile account found for this patient.');
+  if (requester.role !== ROLES.SUPER_ADMIN)
+    assertSameBarangay(requester, user.barangay_id);
+
+  const newPin = Math.floor(1000 + Math.random() * 9000).toString();
+  const pinHash = await bcrypt.hash(newPin, 12);
+
+  await User.findOneAndUpdate(
+    { patient_id: patientId },
+    { pin_hash: pinHash, updated_at: new Date() },
+  );
+
+  return { newPin };
+};

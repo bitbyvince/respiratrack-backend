@@ -133,3 +133,12 @@ export const updateMyProfile = async (req, res) => {
     return sendError(res, err);
   }
 };
+
+export const resetPatientPin = async (req, res) => {
+  try {
+    const result = await userService.resetPatientPin(req.params.patient_id, req.user);
+    return sendSuccess(res, 'PIN reset successfully.', result);
+  } catch (err) {
+    return sendError(res, err);
+  }
+};

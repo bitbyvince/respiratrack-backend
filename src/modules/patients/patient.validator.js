@@ -263,6 +263,7 @@ export const listPatientsSchema = Joi.object({
   page: Joi.number().integer().min(1).optional().default(1),
   limit: Joi.number().integer().min(1).max(100).optional().default(20),
   barangay_id: Joi.string().optional(),
+  escalation_level: Joi.number().integer().valid(0, 1, 2, 3).optional(),
   risk_level: Joi.string().valid('Compliant', 'At Risk', 'Defaulter').optional().messages({
     'any.only': 'Risk level must be Compliant, At Risk, or Defaulter.',
   }),

@@ -7,9 +7,11 @@ import Inventory from "../../models/Inventory.model.js";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function deriveRiskLevel(complianceRate) {
-  if (complianceRate >= 80) return "low";
-  if (complianceRate >= 65) return "moderate";
+function deriveRiskLevel(complianceRate, activePatients) {
+  if (activePatients === 0) return "low";
+  if (complianceRate === 0) return "moderate"; // just started, no doses yet
+  if (complianceRate >= 90) return "low";
+  if (complianceRate >= 75) return "moderate";
   if (complianceRate >= 50) return "high";
   return "critical";
 }
@@ -62,18 +64,28 @@ export async function buildSnapshotForBarangay(barangay, period, date) {
   let defaulterCount = 0;
   let totalCompliance = 0;
 
-  for (const p of patients) {
-    const rl = p.compliance?.risk_level;
-    if (rl === "Compliant") compliantCount++;
-    else if (rl === "At Risk") atRiskCount++;
-    else if (rl === "Defaulter") defaulterCount++;
-    totalCompliance += p.compliance?.compliance_percentage ?? 0;
+  // AFTER
+let eligibleCount = 0;
+
+for (const p of patients) {
+  const rl = p.compliance?.risk_level;
+  if (rl === "Compliant") compliantCount++;
+  else if (rl === "At Risk") atRiskCount++;
+  else if (rl === "Defaulter") defaulterCount++;
+
+  // Only include in compliance rate if started more than 7 days ago
+  const startedMoreThan7DaysAgo = p.date_started && new Date(p.date_started) <= sevenDaysAgo;
+    if (startedMoreThan7DaysAgo) {
+      totalCompliance += p.compliance?.compliance_percentage ?? 0;
+      eligibleCount++;
+    }
   }
 
   const complianceRate =
-    totalPatients > 0
-      ? parseFloat((totalCompliance / totalPatients).toFixed(2))
-      : 100;
+    eligibleCount > 0
+      ? parseFloat((totalCompliance / eligibleCount).toFixed(2))
+      : 100; // default to 100% if all patients just started
+      
 
   const openEscalations = await EscalationLog.find({
     barangay_id: barangayId,
@@ -90,14 +102,18 @@ export async function buildSnapshotForBarangay(barangay, period, date) {
   const inventory = await Inventory.find({ barangay_id: barangayId }).select("stock_status");
   const stockStatus = resolveStockStatus(inventory);
 
-  const riskLevel = deriveRiskLevel(complianceRate);
+  const riskLevel = deriveRiskLevel(complianceRate, totalPatients);
   const heatIntensity = calcHeatIntensity(complianceRate);
 
-  return HeatmapSnapshot.findOneAndUpdate(
-    { barangay_id: barangayId, period, snapshot_date: date },
-    {
-      $set: {
-        barangay_name: barangay.name,
+  const snapshotId = `HMAP-${barangayId}-${period}-${date.toISOString().split('T')[0]}`;
+
+
+    return HeatmapSnapshot.findOneAndUpdate(
+      { barangay_id: barangayId, period, snapshot_date: date },
+      {
+        $set: {
+      snapshot_id: snapshotId,
+      barangay_name: barangay.name,
         health_center_name: barangay.health_center?.name ?? "",
         coordinates: barangay.coordinates,
         boundary_geojson: barangay.boundary_geojson,
@@ -148,13 +164,14 @@ export async function getBarangayDetail(barangayId, period = "monthly", snapshot
 
   if (!snapshot) throw new Error(`No heatmap snapshot found for ${barangayId}`);
 
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
   const patients = await Patient.find({
     barangay_id: barangayId,
     is_active: true,
   }).select(
-    "patient_id tb_case_number full_name compliance.risk_level " +
-    "compliance.compliance_percentage compliance.consecutive_missed_doses " +
-    "escalation.level treatment_phase"
+    "compliance.risk_level compliance.compliance_percentage escalation.level date_started"
   );
 
   const activeAlerts = await Alert.find({
