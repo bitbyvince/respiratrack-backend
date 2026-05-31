@@ -1,5 +1,6 @@
 import * as notificationService from "./notification.service.js";
 import { sendSuccess, sendError } from "../../utils/apiResponse.js";
+import Notification from "../../models/Notification.model.js";
 
 export async function registerToken(req, res) {
   try {
@@ -38,13 +39,11 @@ export async function broadcastNotification(req, res) {
     const { roles, barangay_id, title, body, type, data } = req.body;
     const { role, barangay_id: userBarangay } = req.user;
     const scopedBarangayId = role === "super_admin" ? barangay_id : userBarangay;
-
     const result = await notificationService.broadcastToRoles(
       roles,
       scopedBarangayId,
       { title, body, type, data }
     );
-
     return sendSuccess(res, 200, "Broadcast sent", result);
   } catch (err) {
     return sendError(res, 500, err.message);
@@ -56,7 +55,6 @@ export async function listNotifications(req, res) {
     const { role, user_id: authUserId } = req.user;
     const userId =
       role === "super_admin" && req.query.user_id ? req.query.user_id : authUserId;
-
     const result = await notificationService.listNotifications({
       user_id: userId,
       type: req.query.type,
@@ -65,7 +63,6 @@ export async function listNotifications(req, res) {
       page: Number(req.query.page) || 1,
       limit: Number(req.query.limit) || 20,
     });
-
     return sendSuccess(res, 200, "Notifications fetched", result);
   } catch (err) {
     return sendError(res, 500, err.message);
@@ -102,6 +99,35 @@ export async function markAllRead(req, res) {
   }
 }
 
+export async function logNurseNotification(req, res) {
+  try {
+    const { title, body, type } = req.body;
+    const notif = await Notification.create({
+      notification_id: `NOTIF-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+      user_id: req.user.user_id,
+      title,
+      body,
+      type: type ?? "GENERAL",
+      is_read: false,
+      fcm_success: false,
+      sent_at: new Date(),
+      created_at: new Date(),
+    });
+    return sendSuccess(res, 201, "Notification logged", notif);
+  } catch (err) {
+    return sendError(res, 500, err.message);
+  }
+}
+
+export async function deleteNotification(req, res) {
+  try {
+    await Notification.findByIdAndDelete(req.params.id);
+    return sendSuccess(res, 200, "Notification deleted");
+  } catch (err) {
+    return sendError(res, 500, err.message);
+  }
+}
+
 export default {
   registerToken,
   removeToken,
@@ -111,4 +137,6 @@ export default {
   getUnreadCount,
   markRead,
   markAllRead,
+  logNurseNotification,
+  deleteNotification,
 };

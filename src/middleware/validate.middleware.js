@@ -26,8 +26,8 @@ export const validate = (schema, source = "body") => {
       });
     }
 
-    if (location === 'query') {
-      Object.assign(req.query, value);
+    if (location === "query" || location === "params" || location === "headers") {
+      Object.assign(req[location], value);
     } else {
       req[location] = value;
     }

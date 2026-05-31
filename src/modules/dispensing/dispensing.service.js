@@ -1,18 +1,13 @@
 import DispensingRecord from "../../models/DispensingRecord.model.js";
 import Patient from "../../models/Patient.model.js";
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+import Inventory from "../../models/Inventory.model.js";
 
 function normalizeDateRange(from, to) {
   const query = {};
-
   if (from) {
     const start = new Date(from);
-    if (!Number.isNaN(start.getTime())) {
-      query.$gte = start;
-    }
+    if (!Number.isNaN(start.getTime())) query.$gte = start;
   }
-
   if (to) {
     const end = new Date(to);
     if (!Number.isNaN(end.getTime())) {
@@ -20,20 +15,16 @@ function normalizeDateRange(from, to) {
       query.$lte = end;
     }
   }
-
   return Object.keys(query).length ? query : null;
 }
 
 function buildQuery(filters = {}) {
   const query = {};
-
   if (filters.patient_id) query.patient_id = filters.patient_id;
   if (filters.barangay_id) query.barangay_id = filters.barangay_id;
-  if (filters.medication_name) query.medication_name = filters.medication_name;
-
+  if (filters.drug_name) query.drug_name = filters.drug_name;
   const dateRange = normalizeDateRange(filters.from_date, filters.to_date);
-  if (dateRange) query.dispensed_date = dateRange;
-
+  if (dateRange) query.dispense_date = dateRange;
   return query;
 }
 
@@ -42,32 +33,57 @@ async function generateRecordId() {
   return `DISP-${String(count + 1).padStart(4, "0")}`;
 }
 
-// ─── Service Functions ────────────────────────────────────────────────────────
-
 export async function createDispensingRecord(data, user) {
-  const { patient_id, medication_name, dosage, quantity, dispensed_date, dispensed_by, notes } = data;
+  const {
+    patient_id,
+    inventory_id,
+    drug_name,
+    strength,
+    unit,
+    quantity_dispensed,
+    dispense_date,
+    dispense_id,
+    dispensed_by,
+    notes,
+  } = data;
 
   const patient = await Patient.findOne({ patient_id });
   if (!patient) throw new Error("Patient not found.");
+  if (!patient.tb_case_number) throw new Error("Patient is missing tb_case_number.");
+  if (!patient.barangay_id) throw new Error("Patient is missing barangay_id.");
 
-  const recordId = await generateRecordId();
+  const recordId = dispense_id?.trim() || (await generateRecordId());
 
   const record = await DispensingRecord.create({
-    record_id: recordId,
+    dispense_id: recordId,
     patient_id,
-    tb_case_number: patient.tb_case_number || null,
-    barangay_id: patient.barangay_id || null,
+    tb_case_number: patient.tb_case_number,
+    barangay_id: patient.barangay_id,
     health_center_id: patient.health_center_id || null,
-    medication_name,
-    dosage: dosage || "",
-    quantity,
-    dispensed_date: new Date(dispensed_date),
+    drug_name,
+    strength,
+    unit: unit || "tablet",
+    quantity_dispensed,
+    dispense_date: new Date(dispense_date),
+    dispensed_at: new Date(),
     dispensed_by,
     notes: notes || "",
-    created_at: new Date(),
-    updated_at: new Date(),
     created_by: user?.user_id ?? null,
   });
+
+  if (inventory_id) {
+    await Inventory.findOneAndUpdate(
+      { inventory_id },
+      {
+        $inc: {
+          total_dispensed: quantity_dispensed,
+          remaining_stock: -quantity_dispensed,
+        },
+        last_dispensed_at: new Date(),
+        last_updated_at: new Date(),
+      }
+    );
+  }
 
   return record;
 }
@@ -79,7 +95,7 @@ export async function getDispensingRecords(filters, { page = 1, limit = 20 }) {
   const skip = (parsedPage - 1) * parsedLimit;
 
   const [records, total] = await Promise.all([
-    DispensingRecord.find(query).sort({ dispensed_date: -1 }).skip(skip).limit(parsedLimit),
+    DispensingRecord.find(query).sort({ dispense_date: -1 }).skip(skip).limit(parsedLimit),
     DispensingRecord.countDocuments(query),
   ]);
 
@@ -87,7 +103,7 @@ export async function getDispensingRecords(filters, { page = 1, limit = 20 }) {
 }
 
 export async function getDispensingRecord(recordId) {
-  const record = await DispensingRecord.findOne({ record_id: recordId });
+  const record = await DispensingRecord.findOne({ dispense_id: recordId });
   if (!record) throw new Error("Dispensing record not found.");
   return record;
 }
@@ -99,7 +115,7 @@ export async function getPatientDispensingRecords(patientId, filters = {}, { pag
   const skip = (parsedPage - 1) * parsedLimit;
 
   const [records, total] = await Promise.all([
-    DispensingRecord.find(query).sort({ dispensed_date: -1 }).skip(skip).limit(parsedLimit),
+    DispensingRecord.find(query).sort({ dispense_date: -1 }).skip(skip).limit(parsedLimit),
     DispensingRecord.countDocuments(query),
   ]);
 
@@ -113,7 +129,7 @@ export async function getBarangayDispensingRecords(barangayId, filters = {}, { p
   const skip = (parsedPage - 1) * parsedLimit;
 
   const [records, total] = await Promise.all([
-    DispensingRecord.find(query).sort({ dispensed_date: -1 }).skip(skip).limit(parsedLimit),
+    DispensingRecord.find(query).sort({ dispense_date: -1 }).skip(skip).limit(parsedLimit),
     DispensingRecord.countDocuments(query),
   ]);
 

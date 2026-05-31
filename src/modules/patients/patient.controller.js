@@ -37,7 +37,12 @@ export const getPatient = async (req, res) => {
 export const registerPatient = async (req, res) => {
   try {
     const { patient, defaultPin } = await patientService.registerPatient(req.body, req.user);
-    return sendSuccess(res, 'Patient registered successfully.', { patient, defaultPin }, 201);
+    return sendSuccess(res, 'Patient registered successfully.', {
+      patient,
+      defaultPin,
+      patient_id: patient.patient_id,
+      default_pin: defaultPin,
+    }, 201);
   } catch (err) {
     console.error('registerPatient full error:', err);
     return sendError(res, err);
@@ -109,6 +114,20 @@ export const exportPatientsPdf = async (req, res) => {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="patients_${Date.now()}.pdf"`);
     return res.send(pdfBuffer);
+  } catch (err) {
+    return sendError(res, err);
+  }
+};
+
+// ── Tablet: update patient status ────────────────────────────
+export const updatePatientStatus = async (req, res) => {
+  try {
+    const updated = await patientService.updatePatientStatus(
+      req.params.patient_id,
+      req.body.status,
+      req.user,
+    );
+    return sendSuccess(res, 'Patient status updated.', updated);
   } catch (err) {
     return sendError(res, err);
   }

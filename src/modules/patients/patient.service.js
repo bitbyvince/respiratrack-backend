@@ -27,13 +27,20 @@ const assertSameBarangay = (requester, targetBarangayId) => {
 };
 
 // ── GENERATE SEQUENTIAL PATIENT ID ──────────────────────
+// Uses regex + sort by patient_id (Tablet fix: more reliable than sorting by created_at)
 const generatePatientId = async () => {
-  const latest = await Patient.findOne().sort({ created_at: -1 }).select('patient_id');
+  const latest = await Patient.findOne(
+    { patient_id: { $regex: '^PT-' } },
+    { patient_id: 1 }
+  ).sort({ patient_id: -1 });
+
   if (!latest) return 'PT-0001';
-  const num = parseInt(latest.patient_id.split('-')[1]) + 1;
-  return `PT-${String(num).padStart(4, '0')}`;
+  const num = parseInt(latest.patient_id.split('-')[1], 10);
+  return `PT-${String(num + 1).padStart(4, '0')}`;
 };
 
+// ── GENERATE SEQUENTIAL USER ID ──────────────────────────
+// Kept from Web: human-readable USR-XXXX format used across system
 const generateUserId = async () => {
   const users = await User.find({}, 'user_id').lean();
   if (!users.length) return 'USR-0001';
@@ -73,19 +80,22 @@ export const listPatients = async (filters = {}) => {
   const { page, limit, skip } = getPagination(filters);
 
   const query = {
-  ...(filters.barangay_id && { barangay_id: filters.barangay_id }),
-  ...(filters.risk_level && { 'compliance.risk_level': filters.risk_level }),
-  ...(filters.escalation_level !== undefined && { 'escalation.level': parseInt(filters.escalation_level) }),
-  ...(filters.treatment_phase && { treatment_phase: filters.treatment_phase }),
-  ...(filters.is_active !== undefined && { is_active: filters.is_active === 'true' }),
-  ...(filters.search && {
-    $or: [
-      { full_name: { $regex: filters.search, $options: 'i' } },
-      { tb_case_number: { $regex: filters.search, $options: 'i' } },
-      { patient_id: { $regex: filters.search, $options: 'i' } },
-    ],
-  }),
-};
+    ...(filters.barangay_id && { barangay_id: filters.barangay_id }),
+    ...(filters.risk_level && { 'compliance.risk_level': filters.risk_level }),
+    // Web-only filter: escalation level
+    ...(filters.escalation_level !== undefined && {
+      'escalation.level': parseInt(filters.escalation_level),
+    }),
+    ...(filters.treatment_phase && { treatment_phase: filters.treatment_phase }),
+    ...(filters.is_active !== undefined && { is_active: filters.is_active === 'true' }),
+    ...(filters.search && {
+      $or: [
+        { full_name: { $regex: filters.search, $options: 'i' } },
+        { tb_case_number: { $regex: filters.search, $options: 'i' } },
+        { patient_id: { $regex: filters.search, $options: 'i' } },
+      ],
+    }),
+  };
 
   const [patients, total] = await Promise.all([
     Patient.find(query).skip(skip).limit(limit).sort({ created_at: -1 }),
@@ -98,8 +108,14 @@ export const listPatients = async (filters = {}) => {
 // ================================================================
 // GET PATIENT BY ID
 // ================================================================
+// Tablet improvement: supports both patient_id string and MongoDB _id
 export const getPatientById = async (patientId, requester) => {
-  const patient = await Patient.findOne({ patient_id: patientId });
+  const isMongoId = /^[a-f\d]{24}$/i.test(patientId);
+  const patient = await Patient.findOne(
+    isMongoId
+      ? { $or: [{ patient_id: patientId }, { _id: patientId }] }
+      : { patient_id: patientId }
+  );
   if (!patient) throw createError(404, 'Patient not found.');
   assertSameBarangay(requester, patient.barangay_id);
   return patient;
@@ -132,6 +148,13 @@ export const registerPatient = async (data, requester) => {
   const endDate = computeEndDate(data.date_started, 6);
   const sputumSchedule = buildSputumSchedule(data.date_started);
 
+  const defaultPin = Math.floor(1000 + Math.random() * 9000).toString();
+  const pinHash = await bcrypt.hash(defaultPin, 12);
+  const mobileUserId = await generateUserId();
+
+  // Tablet improvement: filter(Boolean) prevents double spaces from missing middle name
+  const nameParts = [data.first_name, data.middle_name, data.last_name].filter(Boolean);
+
   const initialCompliance = {
     total_doses_required: 168,
     doses_taken: 0,
@@ -158,22 +181,23 @@ export const registerPatient = async (data, requester) => {
   const patient = new Patient({
     patient_id: patientId,
     tb_case_number: tbCaseNumber,
-    user_id: null,
+    user_id: mobileUserId,
     registered_by: requester.user_id,
     last_name: data.last_name,
     first_name: data.first_name,
     middle_name: data.middle_name || '',
-    full_name: `${data.first_name} ${data.middle_name || ''} ${data.last_name}`.trim(),
+    full_name: nameParts.join(' '),
     birth_date: new Date(data.birth_date),
     age: data.age,
     sex: data.sex,
     philhealth_number: data.philhealth_number || null,
     phone_number: data.phone_number,
     email: data.email || null,
-barangay_id: requester.role === ROLES.SUPER_ADMIN ? data.barangay_id : requester.barangay_id,
-barangay_name: requester.role === ROLES.SUPER_ADMIN ? data.barangay_name : requester.barangay_name ?? data.barangay_name,
-health_center_id: requester.role === ROLES.SUPER_ADMIN ? data.health_center_id : requester.health_center_id,
-health_center_name: requester.role === ROLES.SUPER_ADMIN ? data.health_center_name : requester.health_center_name ?? data.health_center_name,
+    // Web: SUPER_ADMIN can register for any barangay; others are scoped to their own
+    barangay_id: requester.role === ROLES.SUPER_ADMIN ? data.barangay_id : requester.barangay_id,
+    barangay_name: requester.role === ROLES.SUPER_ADMIN ? data.barangay_name : requester.barangay_name ?? data.barangay_name,
+    health_center_id: requester.role === ROLES.SUPER_ADMIN ? data.health_center_id : requester.health_center_id,
+    health_center_name: requester.role === ROLES.SUPER_ADMIN ? data.health_center_name : requester.health_center_name ?? data.health_center_name,
     assigned_nurse_id:
       requester.role === ROLES.NURSE ? requester.user_id : data.assigned_nurse_id || null,
     diagnosis: data.diagnosis,
@@ -224,30 +248,21 @@ health_center_name: requester.role === ROLES.SUPER_ADMIN ? data.health_center_na
 
   await patient.save();
 
-  const defaultPin = Math.floor(1000 + Math.random() * 9000).toString();
-  const pinHash = await bcrypt.hash(defaultPin, 12);
-  const mobileUserId = await generateUserId();
-
-  const mobileUser = new User({
+  // Tablet improvement: User.create() in one step; user_id already set above so no second update needed
+  await User.create({
     user_id: mobileUserId,
     role: 'patient',
     first_name: data.first_name,
     last_name: data.last_name,
+    email: data.email || null,
     phone_number: data.phone_number,
     tb_case_number: tbCaseNumber,
-    pin_hash: pinHash,
     patient_id: patientId,
+    pin_hash: pinHash,
     barangay_id: patient.barangay_id,
     health_center_id: patient.health_center_id,
     is_active: true,
   });
-
-  await mobileUser.save();
-
-  await Patient.findOneAndUpdate(
-    { patient_id: patientId },
-    { user_id: mobileUserId, updated_at: new Date() },
-  );
 
   return { patient, defaultPin };
 };
@@ -263,7 +278,7 @@ export const updatePatient = async (patientId, data, requester) => {
   const firstName = data.first_name || patient.first_name;
   const middleName = data.middle_name ?? patient.middle_name;
   const lastName = data.last_name || patient.last_name;
-  const fullName = `${firstName} ${middleName || ''} ${lastName}`.trim();
+  const fullName = [firstName, middleName, lastName].filter(Boolean).join(' ');
 
   const dateStarted = data.date_started ? new Date(data.date_started) : patient.date_started;
   const endDate = computeEndDate(dateStarted, 6);
@@ -308,6 +323,34 @@ export const updatePatient = async (patientId, data, requester) => {
   const updated = await Patient.findOneAndUpdate({ patient_id: patientId }, allowedUpdates, {
     new: true,
   });
+
+  return updated;
+};
+
+// ================================================================
+// UPDATE PATIENT STATUS (Web route: PATCH /:patient_id/status)
+// ================================================================
+export const updatePatientStatus = async (patientId, status, requester) => {
+  const patient = await Patient.findOne({ patient_id: patientId });
+  if (!patient) throw createError(404, 'Patient not found.');
+  assertSameBarangay(requester, patient.barangay_id);
+
+  const outcomeStatus =
+    status === 'Completed' ? 'Treatment Completed' :
+    status === 'Defaulted' ? 'Lost to Follow-Up' :
+    'On Treatment';
+
+  const updated = await Patient.findOneAndUpdate(
+    { patient_id: patientId },
+    {
+      'treatment_outcome.status': outcomeStatus,
+      'treatment_outcome.date_of_outcome': status !== 'Active' ? new Date() : null,
+      'treatment_outcome.recorded_by': requester.user_id,
+      is_active: status === 'Active',
+      updated_at: new Date(),
+    },
+    { new: true },
+  );
 
   return updated;
 };

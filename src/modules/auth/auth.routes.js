@@ -10,45 +10,21 @@ import {
   changePinSchema,
   requestOtpSchema,
   verifyOtpSchema,
+  setPatientPinSchema,
 } from "./auth.validator.js";
 
 const router = Router();
 
-// ── STAFF LOGIN (super_admin, barangay_admin, nurse) ─────
 router.post("/login", validate(loginSchema), authController.staffLogin);
-
-// ── PATIENT LOGIN (mobile app) ───────────────────────────
 router.post("/patient-login", validate(patientLoginSchema), authController.patientLogin);
-
-// ── REFRESH ACCESS TOKEN ─────────────────────────────────
+router.post("/staff/login", validate(loginSchema), authController.staffLogin);
+router.post("/set-pin", authMiddleware, validate(setPatientPinSchema), authController.setPatientPin);
 router.post("/refresh", validate(refreshTokenSchema), authController.refreshToken);
-
-// ── LOGOUT ───────────────────────────────────────────────
 router.post("/logout", authMiddleware, authController.logout);
-
-// ── CHANGE PASSWORD (staff only) ─────────────────────────
-router.post(
-  "/change-password",
-  authMiddleware,
-  validate(changePasswordSchema),
-  authController.changePassword
-);
-
-// ── CHANGE PIN (patient only) ────────────────────────────
-router.post(
-  "/change-pin",
-  authMiddleware,
-  validate(changePinSchema),
-  authController.changePin
-);
-
-// ── OTP — REQUEST (Firebase SMS) ─────────────────────────
+router.post("/change-password", authMiddleware, validate(changePasswordSchema), authController.changePassword);
+router.post("/change-pin", authMiddleware, validate(changePinSchema), authController.changePin);
 router.post("/otp/request", validate(requestOtpSchema), authController.requestOtp);
-
-// ── OTP — VERIFY ─────────────────────────────────────────
 router.post("/otp/verify", validate(verifyOtpSchema), authController.verifyOtp);
-
-// ── GET CURRENT USER ─────────────────────────────────────
 router.get("/me", authMiddleware, authController.getMe);
 
 export default router;
