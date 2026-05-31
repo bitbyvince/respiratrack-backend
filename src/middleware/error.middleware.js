@@ -60,5 +60,6 @@ export const errorHandler = (err, req, res, next) => {
   }
 
   console.error("[error.middleware]", err);
+  console.error('[error.middleware] STACK:', err?.stack);
   return res.status(statusCode).json(payload);
 };
