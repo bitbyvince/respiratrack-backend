@@ -16,17 +16,17 @@ router.post(
 );
 
 router.get(
+  '/my',
+  authenticate,
+  authorize('patient'),
+  controller.getMyAppointments,
+);
+
+router.get(
   '/',
   authenticate,
   authorize('nurse', 'barangay_admin', 'super_admin'),
   controller.getAppointments,
-);
-
-router.get(
-  '/:appointmentId',
-  authenticate,
-  authorize('nurse', 'barangay_admin', 'super_admin', 'patient'),
-  controller.getAppointment,
 );
 
 router.get(
@@ -41,6 +41,13 @@ router.get(
   authenticate,
   authorize('nurse', 'barangay_admin', 'super_admin'),
   controller.getBarangayAppointments,
+);
+
+router.get(
+  '/:appointmentId',
+  authenticate,
+  authorize('nurse', 'barangay_admin', 'super_admin', 'patient'),
+  controller.getAppointment,
 );
 
 router.patch(

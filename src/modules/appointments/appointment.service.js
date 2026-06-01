@@ -58,7 +58,10 @@ export const getAppointments = async (filters, { page, limit }) => {
   const { status, purpose, from, to } = filters;
   const query = {};
 
-  if (status) query.status = status;
+  if (status) {
+    const statuses = status.split(',').map(s => s.trim());
+    query.status = statuses.length === 1 ? statuses[0] : { $in: statuses };
+  }
   if (purpose) query.purpose = purpose;
   if (from || to) {
     query.scheduled_date = {};
@@ -81,16 +84,32 @@ export const getAppointment = async (appointmentId) => {
   return appointment;
 };
 
-export const getPatientAppointments = async (patientId, { status, purpose }) => {
+export const getPatientAppointments = async (patientId, { status, purpose, upcoming } = {}) => {
   const query = { patient_id: patientId };
-  if (status) query.status = status;
+
+  if (status) {
+    const statuses = status.split(',').map(s => s.trim());
+    query.status = statuses.length === 1 ? statuses[0] : { $in: statuses };
+  }
+
   if (purpose) query.purpose = purpose;
+
+  if (upcoming === 'true') {
+    query.scheduled_date = { $gte: new Date() };
+  } else if (upcoming === 'false') {
+    query.scheduled_date = { $lt: new Date() };
+  }
+
   return await Appointment.find(query).sort({ scheduled_date: -1 });
 };
 
 export const getBarangayAppointments = async (barangayId, { status, purpose, date }) => {
   const query = { barangay_id: barangayId };
-  if (status) query.status = status;
+
+  if (status) {
+    const statuses = status.split(',').map(s => s.trim());
+    query.status = statuses.length === 1 ? statuses[0] : { $in: statuses };
+  }
   if (purpose) query.purpose = purpose;
   if (date) {
     const start = new Date(date);

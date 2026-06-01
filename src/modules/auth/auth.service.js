@@ -20,6 +20,7 @@ const buildTokenPayload = (user) => ({
   role: user.role,
   barangay_id: user.barangay_id || null,
   health_center_id: user.health_center_id || null,
+  patient_id: user.patient_id || null,
 });
 
 async function issueTokens(user) {
@@ -33,7 +34,13 @@ async function issueTokens(user) {
     { refresh_token_hash: hashedRefresh, last_login: new Date() }
   );
 
-  return { accessToken, refreshToken, role: user.role, barangay_id: user.barangay_id || null, barangay_name: user.barangay_name || null, };
+  return {
+    accessToken,
+    refreshToken,
+    role: user.role,
+    barangay_id: user.barangay_id || null,
+    barangay_name: user.barangay_name || null,
+  };
 }
 
 export async function staffLogin(email, password) {

@@ -1,1 +1,2 @@
 [2026-05-31 01:00:00] error: [escalation.job] Error: E11000 duplicate key error collection: tb_monitoring.alerts index: alert_id_1 dup key: { alert_id: "ALT-0008" }
+[2026-06-01 07:15:30] error: [sputumReminder.job] Error: Socket 'secureConnect' timed out after 30054ms (connectTimeoutMS: 30000)
