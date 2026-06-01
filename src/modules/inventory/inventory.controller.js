@@ -14,9 +14,9 @@ export async function listInventory(req, res) {
       limit: Number(req.query.limit) || 20,
     });
 
-    return sendSuccess(res, 200, "Inventory fetched", result);
+    return sendSuccess(res, "Inventory fetched", result, 200);
   } catch (err) {
-    return sendError(res, 500, err.message);
+    return sendError(res, err);
   }
 }
 
@@ -27,9 +27,9 @@ export async function getInventoryGrouped(req, res) {
 
     const grouped = await inventoryService.getInventoryGroupedByBarangay(barangayId);
 
-    return sendSuccess(res, 200, "Grouped inventory fetched", grouped);
+    return sendSuccess(res, "Grouped inventory fetched", grouped, 200);
   } catch (err) {
-    return sendError(res, 500, err.message);
+    return sendError(res, err);
   }
 }
 
@@ -41,9 +41,9 @@ export async function getLowStock(req, res) {
 
     const items = await inventoryService.getLowStockItems(barangayId, includeOk);
 
-    return sendSuccess(res, 200, "Low stock items fetched", items);
+    return sendSuccess(res, "Low stock items fetched", items, 200);
   } catch (err) {
-    return sendError(res, 500, err.message);
+    return sendError(res, err);
   }
 }
 
@@ -55,9 +55,9 @@ export async function getStockoutPredictions(req, res) {
 
     const predictions = await inventoryService.getStockoutPredictions(barangayId, daysThreshold);
 
-    return sendSuccess(res, 200, "Stockout predictions fetched", predictions);
+    return sendSuccess(res, "Stockout predictions fetched", predictions, 200);
   } catch (err) {
-    return sendError(res, 500, err.message);
+    return sendError(res, err);
   }
 }
 
@@ -67,13 +67,13 @@ export async function getInventoryItem(req, res) {
 
     const { role, barangay_id: userBarangay } = req.user;
     if (role !== "super_admin" && item.barangay_id !== userBarangay) {
-      return sendError(res, 403, "Access denied to this inventory record");
+      return sendError(res, { statusCode: 403, message: "Access denied to this inventory record" });
     }
 
-    return sendSuccess(res, 200, "Inventory item fetched", item);
+    return sendSuccess(res, "Inventory item fetched", item, 200);
   } catch (err) {
     const status = err.message === "Inventory record not found" ? 404 : 500;
-    return sendError(res, status, err.message);
+    return sendError(res, err);
   }
 }
 
@@ -83,7 +83,7 @@ export async function adjustStock(req, res) {
 
     const { role, barangay_id: userBarangay, user_id } = req.user;
     if (role !== "super_admin" && item.barangay_id !== userBarangay) {
-      return sendError(res, 403, "Access denied to this inventory record");
+      return sendError(res, { statusCode: 403, message: "Access denied to this inventory record" });
     }
 
     const result = await inventoryService.adjustStock(
@@ -94,9 +94,9 @@ export async function adjustStock(req, res) {
       user_id
     );
 
-    return sendSuccess(res, 200, "Stock adjusted", result);
+    return sendSuccess(res, "Stock adjusted", result, 200);
   } catch (err) {
     const status = err.message === "Inventory record not found" ? 404 : 400;
-    return sendError(res, status, err.message);
+    return sendError(res, err);
   }
 }

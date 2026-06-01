@@ -5,7 +5,7 @@
 //
 // Flow:
 //   1. Extract Bearer token from Authorization header
-//   2. Verify signature and expiry against JWT_SECRET
+//   2. Verify signature and expiry against JWT_ACCESS_SECRET
 //   3. Cross-check user still exists and is active in MongoDB
 //   4. Attach full user doc to req.user and move on
 //
@@ -42,7 +42,7 @@ export const authenticate = async (req, res, next) => {
     // ── 2. Verify token ───────────────────────────────────
     let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
+      decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
     } catch (err) {
       if (err.name === "TokenExpiredError") {
         return res.status(401).json({
@@ -58,7 +58,6 @@ export const authenticate = async (req, res, next) => {
           message: "Invalid token. Please log in again.",
         });
       }
-      // Any other JWT error
       return res.status(401).json({
         success: false,
         code: "TOKEN_ERROR",
@@ -81,8 +80,6 @@ export const authenticate = async (req, res, next) => {
     }
 
     // ── 4. Attach to request and continue ─────────────────
-    // req.user is now available to all downstream middleware
-    // and route handlers for this request
     req.user = {
       user_id: user.user_id,
       role: user.role,
@@ -105,15 +102,6 @@ export const authenticate = async (req, res, next) => {
   }
 };
 
-// ============================================================
-// Optional: Soft authentication
-// Same as authenticate but does NOT block if no token present.
-// Useful for public routes that behave differently when logged in
-// (e.g. heatmap page — public sees zones, logged-in sees sidebar).
-//
-// Usage:
-//   router.get("/heatmap", softAuthenticate, handler)
-// ============================================================
 export const softAuthenticate = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -131,7 +119,7 @@ export const softAuthenticate = async (req, res, next) => {
 
     let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
+      decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
     } catch {
       req.user = null;
       return next();

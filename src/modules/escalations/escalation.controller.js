@@ -7,11 +7,11 @@ export async function triggerEscalation(req, res) {
     const result = await escalationService.triggerEscalation(patient_id, consecutive_missed_doses);
 
     if (!result.created) {
-      return sendSuccess(res, 200, 'No new escalation required or already exists', result);
+      return sendSuccess(res, 'No new escalation required or already exists', result, 200);
     }
-    return sendSuccess(res, 201, `Escalation Level ${result.level} triggered`, result);
+    return sendSuccess(res, `Escalation Level ${result.level} triggered`, result, 201);
   } catch (err) {
-    return sendError(res, 500, err.message);
+    return sendError(res, err);
   }
 }
 
@@ -31,19 +31,19 @@ export async function listEscalations(req, res) {
     };
 
     const result = await escalationService.listEscalations(filters);
-    return sendSuccess(res, 200, 'Escalations fetched', result);
+    return sendSuccess(res, 'Escalations fetched', result, 200);
   } catch (err) {
-    return sendError(res, 500, err.message);
+    return sendError(res, err);
   }
 }
 
 export async function getEscalation(req, res) {
   try {
     const escalation = await escalationService.getEscalationById(req.params.escalationId);
-    return sendSuccess(res, 200, 'Escalation fetched', escalation);
+    return sendSuccess(res, 'Escalation fetched', escalation, 200);
   } catch (err) {
     const status = err.message === 'Escalation not found' ? 404 : 500;
-    return sendError(res, status, err.message);
+    return sendError(res, err);
   }
 }
 
@@ -54,10 +54,10 @@ export async function acknowledgeEscalation(req, res) {
       req.user.user_id,
       req.body.acknowledgement_notes,
     );
-    return sendSuccess(res, 200, 'Escalation acknowledged', escalation);
+    return sendSuccess(res, 'Escalation acknowledged', escalation, 200);
   } catch (err) {
     const status = err.message === 'Escalation not found' ? 404 : 400;
-    return sendError(res, status, err.message);
+    return sendError(res, err);
   }
 }
 
@@ -68,9 +68,9 @@ export async function resolveEscalation(req, res) {
       req.user.user_id,
       req.body.resolution_notes,
     );
-    return sendSuccess(res, 200, 'Escalation resolved', escalation);
+    return sendSuccess(res, 'Escalation resolved', escalation, 200);
   } catch (err) {
     const status = err.message === 'Escalation not found' ? 404 : 400;
-    return sendError(res, status, err.message);
+    return sendError(res, err);
   }
 }

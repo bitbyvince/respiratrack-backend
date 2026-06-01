@@ -1,12 +1,26 @@
 import * as service from "./medication-log.service.js";
-import { success, error } from "../../utils/apiResponse.js";
+import { sendSuccess, sendError } from "../../utils/apiResponse.js";
 
 export async function logMedication(req, res) {
   try {
     const log = await service.logMedication(req.body, req.user);
-    return res.status(201).json(success("Medication log recorded.", { log }));
+    return sendSuccess(res, "Medication log recorded.", { log }, 201);
   } catch (err) {
-    return res.status(400).json(error(err.message));
+    return sendError(res, err);
+  }
+}
+
+export async function getMyLogs(req, res) {
+  try {
+    const { page = 1, limit = 60, status, from, to, date } = req.query;
+    const resolvedFrom = from ?? date;
+    const resolvedTo = to ?? date;
+    const result = await service.getPatientLogs(req.user.patient_id, {
+      page, limit, status, from: resolvedFrom, to: resolvedTo,
+    });
+    return sendSuccess(res, "Medication logs retrieved.", result);
+  } catch (err) {
+    return sendError(res, err);
   }
 }
 
@@ -15,9 +29,9 @@ export async function getPatientLogs(req, res) {
     const { patientId } = req.params;
     const { page = 1, limit = 20, status, from, to } = req.query;
     const result = await service.getPatientLogs(patientId, { page, limit, status, from, to });
-    return res.status(200).json(success("Medication logs retrieved.", result));
+    return sendSuccess(res, "Medication logs retrieved.", result);
   } catch (err) {
-    return res.status(400).json(error(err.message));
+    return sendError(res, err);
   }
 }
 
@@ -25,9 +39,9 @@ export async function getTodayLog(req, res) {
   try {
     const { patientId } = req.params;
     const log = await service.getTodayLog(patientId);
-    return res.status(200).json(success("Today log retrieved.", { log }));
+    return sendSuccess(res, "Today log retrieved.", { log });
   } catch (err) {
-    return res.status(400).json(error(err.message));
+    return sendError(res, err);
   }
 }
 
@@ -36,9 +50,9 @@ export async function getMissedDoses(req, res) {
     const { patientId } = req.params;
     const { from, to } = req.query;
     const logs = await service.getMissedDoses(patientId, { from, to });
-    return res.status(200).json(success("Missed doses retrieved.", { logs }));
+    return sendSuccess(res, "Missed doses retrieved.", { logs });
   } catch (err) {
-    return res.status(400).json(error(err.message));
+    return sendError(res, err);
   }
 }
 
@@ -47,9 +61,9 @@ export async function getBarangayLogs(req, res) {
     const { barangayId } = req.params;
     const { date, status } = req.query;
     const logs = await service.getBarangayLogs(barangayId, { date, status });
-    return res.status(200).json(success("Barangay logs retrieved.", { logs }));
+    return sendSuccess(res, "Barangay logs retrieved.", { logs });
   } catch (err) {
-    return res.status(400).json(error(err.message));
+    return sendError(res, err);
   }
 }
 
@@ -57,8 +71,8 @@ export async function updateLog(req, res) {
   try {
     const { logId } = req.params;
     const log = await service.updateLog(logId, req.body, req.user);
-    return res.status(200).json(success("Medication log updated.", { log }));
+    return sendSuccess(res, "Medication log updated.", { log });
   } catch (err) {
-    return res.status(400).json(error(err.message));
+    return sendError(res, err);
   }
 }

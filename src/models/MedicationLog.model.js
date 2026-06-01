@@ -155,7 +155,7 @@ medicationLogSchema.index({ overall_status: 1 });
 medicationLogSchema.index({ log_date: -1 });
 
 // ── Pre-save: derive overall_status from medicines array ─────
-medicationLogSchema.pre('save', function (next) {
+medicationLogSchema.pre('save', async function () {
   if (this.isModified('medicines') || this.isNew) {
     const statuses = this.medicines.map((m) => m.status);
     const allTaken  = statuses.every((s) => s === 'Taken');
@@ -165,7 +165,6 @@ medicationLogSchema.pre('save', function (next) {
     else if (allMissed) this.overall_status = 'Missed';
     else                this.overall_status = 'Partial';
   }
-  next();
 });
 
 // ── Static: get logs for a patient within a date range ───────

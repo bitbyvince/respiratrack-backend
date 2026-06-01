@@ -63,10 +63,10 @@ export async function getPatientReport(req, res) {
       return streamPDF(res, buffer, `patient-report-${data.patient.tb_case_number}`);
     }
 
-    return sendSuccess(res, 200, "Patient report generated", data);
+    return sendSuccess(res, "Patient report generated", data, 200);
   } catch (err) {
     const status = err.statusCode ?? (err.message === "Patient not found" ? 404 : 500);
-    return sendError(res, status, err.message);
+    return sendError(res, err);
   }
 }
 
@@ -87,10 +87,10 @@ export async function getBarangayReport(req, res) {
       return streamPDF(res, buffer, `barangay-report-${data.barangay.barangay_id}`);
     }
 
-    return sendSuccess(res, 200, "Barangay report generated", data);
+    return sendSuccess(res, "Barangay report generated", data, 200);
   } catch (err) {
     const status = err.statusCode ?? (err.message === "Barangay not found" ? 404 : 500);
-    return sendError(res, status, err.message);
+    return sendError(res, err);
   }
 }
 
@@ -106,9 +106,9 @@ export async function getCityReport(req, res) {
       return streamPDF(res, buffer, `city-report-pasig-${Date.now()}`);
     }
 
-    return sendSuccess(res, 200, "City report generated", data);
+    return sendSuccess(res, "City report generated", data, 200);
   } catch (err) {
-    return sendError(res, 500, err.message);
+    return sendError(res, err);
   }
 }
 
@@ -125,9 +125,9 @@ export async function getComplianceTrend(req, res) {
       req.query.limit ? Number(req.query.limit) : undefined
     );
 
-    return sendSuccess(res, 200, "Compliance trend fetched", data);
+    return sendSuccess(res, "Compliance trend fetched", data, 200);
   } catch (err) {
-    return sendError(res, 500, err.message);
+    return sendError(res, err);
   }
 }
 
@@ -143,9 +143,9 @@ export async function getInventoryReport(req, res) {
       return streamPDF(res, buffer, `inventory-report-${barangayId ?? "all"}-${Date.now()}`);
     }
 
-    return sendSuccess(res, 200, "Inventory report generated", data);
+    return sendSuccess(res, "Inventory report generated", data, 200);
   } catch (err) {
-    return sendError(res, 500, err.message);
+    return sendError(res, err);
   }
 }
 
@@ -162,9 +162,9 @@ export async function getTreatmentOutcomes(req, res) {
       return streamPDF(res, buffer, `outcome-report-${barangayId ?? "all"}-${year ?? "all"}`);
     }
 
-    return sendSuccess(res, 200, "Treatment outcome report generated", data);
+    return sendSuccess(res, "Treatment outcome report generated", data, 200);
   } catch (err) {
-    return sendError(res, 500, err.message);
+    return sendError(res, err);
   }
 }
 

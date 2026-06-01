@@ -21,6 +21,7 @@ const buildTokenPayload = (user) => ({
   role: user.role,
   barangay_id: user.barangay_id || null,
   health_center_id: user.health_center_id || null,
+  patient_id: user.patient_id || null,
 });
 
 async function issueTokens(user) {
@@ -54,6 +55,7 @@ export async function staffLogin(email, password) {
 export async function patientLogin(identifier, pin) {
   const user = await User.findOne({
     $or: [
+      { patient_id: identifier },
       { tb_case_number: identifier },
       { phone_number: identifier },
       { email: identifier },

@@ -16,7 +16,7 @@ export const listStaff = async (req, res) => {
       await userService.listStaff(filters),
     );
   } catch (err) {
-    return sendError(res, err.statusCode || 500, err.message);
+    return sendError(res, err);
   }
 };
 
@@ -29,7 +29,7 @@ export const getStaff = async (req, res) => {
       await userService.getStaffById(req.params.user_id, req.user),
     );
   } catch (err) {
-    return sendError(res, err.statusCode || 404, err.message);
+    return sendError(res, err);
   }
 };
 
@@ -42,7 +42,7 @@ export const createStaff = async (req, res) => {
       await userService.createStaff(req.body, req.user),
     );
   } catch (err) {
-    return sendError(res, err.statusCode || 400, err.message);
+    return sendError(res, err);
   }
 };
 
@@ -55,34 +55,34 @@ export const updateStaff = async (req, res) => {
       await userService.updateStaff(req.params.user_id, req.body, req.user),
     );
   } catch (err) {
-    return sendError(res, err.statusCode || 400, err.message);
+    return sendError(res, err);
   }
 };
 
 export const deactivateStaff = async (req, res) => {
   try {
     await userService.setStaffActiveStatus(req.params.user_id, false, req.user);
-    return sendSuccess(res, 200, "Staff account deactivated.");
+    return sendSuccess(res, "Staff account deactivated.", null, 200);
   } catch (err) {
-    return sendError(res, err.statusCode || 400, err.message);
+    return sendError(res, err);
   }
 };
 
 export const reactivateStaff = async (req, res) => {
   try {
     await userService.setStaffActiveStatus(req.params.user_id, true, req.user);
-    return sendSuccess(res, 200, "Staff account reactivated.");
+    return sendSuccess(res, "Staff account reactivated.", null, 200);
   } catch (err) {
-    return sendError(res, err.statusCode || 400, err.message);
+    return sendError(res, err);
   }
 };
 
 export const deleteStaff = async (req, res) => {
   try {
     await userService.deleteStaff(req.params.user_id, req.user);
-    return sendSuccess(res, 200, "Staff account permanently deleted.");
+    return sendSuccess(res, "Staff account permanently deleted.", null, 200);
   } catch (err) {
-    return sendError(res, err.statusCode || 400, err.message);
+    return sendError(res, err);
   }
 };
 
@@ -101,7 +101,7 @@ export const listPatientAccounts = async (req, res) => {
       await userService.listPatientAccounts(filters),
     );
   } catch (err) {
-    return sendError(res, err.statusCode || 500, err.message);
+    return sendError(res, err);
   }
 };
 
@@ -114,7 +114,7 @@ export const getPatientAccount = async (req, res) => {
       await userService.getPatientAccountById(req.params.user_id, req.user),
     );
   } catch (err) {
-    return sendError(res, err.statusCode || 404, err.message);
+    return sendError(res, err);
   }
 };
 
@@ -127,7 +127,7 @@ export const createPatientAccount = async (req, res) => {
       await userService.createPatientAccount(req.body, req.user),
     );
   } catch (err) {
-    return sendError(res, err.statusCode || 400, err.message);
+    return sendError(res, err);
   }
 };
 
@@ -144,7 +144,7 @@ export const updatePatientAccount = async (req, res) => {
       ),
     );
   } catch (err) {
-    return sendError(res, err.statusCode || 400, err.message);
+    return sendError(res, err);
   }
 };
 
@@ -155,9 +155,9 @@ export const deactivatePatientAccount = async (req, res) => {
       false,
       req.user,
     );
-    return sendSuccess(res, 200, "Patient account deactivated.");
+    return sendSuccess(res, "Patient account deactivated.", null, 200);
   } catch (err) {
-    return sendError(res, err.statusCode || 400, err.message);
+    return sendError(res, err);
   }
 };
 
@@ -168,9 +168,9 @@ export const reactivatePatientAccount = async (req, res) => {
       true,
       req.user,
     );
-    return sendSuccess(res, 200, "Patient account reactivated.");
+    return sendSuccess(res, "Patient account reactivated.", null, 200);
   } catch (err) {
-    return sendError(res, err.statusCode || 400, err.message);
+    return sendError(res, err);
   }
 };
 
@@ -183,7 +183,7 @@ export const getMyProfile = async (req, res) => {
       await userService.getUserById(req.user.user_id),
     );
   } catch (err) {
-    return sendError(res, err.statusCode || 404, err.message);
+    return sendError(res, err);
   }
 };
 
@@ -196,6 +196,6 @@ export const updateMyProfile = async (req, res) => {
       await userService.updateMyProfile(req.user.user_id, req.body),
     );
   } catch (err) {
-    return sendError(res, err.statusCode || 400, err.message);
+    return sendError(res, err);
   }
 };

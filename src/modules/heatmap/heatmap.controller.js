@@ -12,9 +12,9 @@ export async function getHeatmap(req, res) {
       barangayId
     );
 
-    return sendSuccess(res, 200, "Heatmap data fetched", snapshots);
+    return sendSuccess(res, "Heatmap data fetched", snapshots, 200);
   } catch (err) {
-    return sendError(res, 500, err.message);
+    return sendError(res, err);
   }
 }
 
@@ -24,7 +24,7 @@ export async function getBarangayDetail(req, res) {
     const { barangayId } = req.params;
 
     if (role !== "super_admin" && barangayId !== userBarangay) {
-      return sendError(res, 403, "Access denied to this barangay");
+      return sendError(res, { statusCode: 403, message: "Access denied to this barangay" });
     }
 
     const detail = await heatmapService.getBarangayDetail(
@@ -33,10 +33,10 @@ export async function getBarangayDetail(req, res) {
       req.query.snapshot_date
     );
 
-    return sendSuccess(res, 200, "Barangay detail fetched", detail);
+    return sendSuccess(res, "Barangay detail fetched", detail, 200);
   } catch (err) {
     const status = err.message.includes("No heatmap snapshot") ? 404 : 500;
-    return sendError(res, status, err.message);
+    return sendError(res, err);
   }
 }
 
@@ -46,7 +46,7 @@ export async function getHeatmapHistory(req, res) {
     const { barangayId } = req.params;
 
     if (role !== "super_admin" && barangayId !== userBarangay) {
-      return sendError(res, 403, "Access denied to this barangay");
+      return sendError(res, { statusCode: 403, message: "Access denied to this barangay" });
     }
 
     const history = await heatmapService.getHeatmapHistory(
@@ -57,9 +57,9 @@ export async function getHeatmapHistory(req, res) {
       req.query.limit ? Number(req.query.limit) : undefined
     );
 
-    return sendSuccess(res, 200, "Heatmap history fetched", history);
+    return sendSuccess(res, "Heatmap history fetched", history, 200);
   } catch (err) {
-    return sendError(res, 500, err.message);
+    return sendError(res, err);
   }
 }
 
@@ -77,6 +77,6 @@ export async function buildSnapshots(req, res) {
       { count: snapshots.length }
     );
   } catch (err) {
-    return sendError(res, 500, err.message);
+    return sendError(res, err);
   }
 }

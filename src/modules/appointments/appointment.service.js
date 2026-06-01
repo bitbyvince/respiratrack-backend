@@ -1,5 +1,6 @@
 import Appointment from '../../models/Appointment.model.js';
 import Patient from '../../models/Patient.model.js';
+import { createError } from '../../utils/apiResponse.js';
 
 const VALID_PURPOSES = ['Follow-up', 'Sputum Test', 'Emergency', 'Routine'];
 const VALID_STATUSES = ['Pending', 'Confirmed', 'Completed', 'Cancelled'];
@@ -29,7 +30,7 @@ export const createAppointment = async (data, user) => {
     scheduled_date: scheduledDateObj,
     status: { $in: ['Pending', 'Confirmed'] },
   });
-  if (existing) throw new Error('Patient already has a pending or confirmed appointment on this date.');
+  if (existing) throw createError(409, 'Patient already has a pending or confirmed appointment on this date.');
 
   const appointmentId = await generateAppointmentId();
 
@@ -81,11 +82,35 @@ export const getAppointment = async (appointmentId) => {
   return appointment;
 };
 
-export const getPatientAppointments = async (patientId, { status, purpose }) => {
+export const getAvailableSlots = async (barangayId, date) => {
+  const start = new Date(date);
+  const end = new Date(start.getTime() + 86400000);
+
+  const booked = await Appointment.find({
+    barangay_id: barangayId,
+    scheduled_date: { $gte: start, $lt: end },
+    status: { $in: ['Pending', 'Confirmed'] },
+  }).select('scheduled_time');
+
+  const bookedTimes = new Set(booked.map(a => a.scheduled_time));
+  const allSlots = ['08:00', '09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00'];
+  return allSlots.filter(t => !bookedTimes.has(t));
+};
+
+export const getPatientAppointments = async (patientId, { status, purpose, upcoming, page, limit }) => {
   const query = { patient_id: patientId };
-  if (status) query.status = status;
+  if (status) query.status = { $in: status.split(',').map(s => s.trim()) };
   if (purpose) query.purpose = purpose;
-  return await Appointment.find(query).sort({ scheduled_date: -1 });
+  
+  const skip = page && limit ? (parseInt(page) - 1) * parseInt(limit) : 0;
+  const limitNum = limit ? parseInt(limit) : 100;
+
+  const appointments = await Appointment.find(query)
+    .sort({ scheduled_date: upcoming === 'true' ? 1 : -1 })
+    .skip(skip)
+    .limit(limitNum);
+
+  return appointments;
 };
 
 export const getBarangayAppointments = async (barangayId, { status, purpose, date }) => {

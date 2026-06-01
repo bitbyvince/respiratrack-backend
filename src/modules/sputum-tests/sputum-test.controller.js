@@ -8,7 +8,7 @@ export async function createSputumTest(req, res) {
       req.body,
       req.user.user_id,
     );
-    return sendSuccess(res, 201, "Sputum test created", test);
+    return sendSuccess(res, "Sputum test created", test, 201);
   } catch (err) {
     const status =
       err.message === "Patient not found"
@@ -16,7 +16,7 @@ export async function createSputumTest(req, res) {
         : err.message.includes("already exists")
           ? 409
           : 500;
-    return sendError(res, status, err.message);
+    return sendError(res, err);
   }
 }
 
@@ -35,9 +35,9 @@ export async function listSputumTests(req, res) {
       page: Number(req.query.page) || 1,
       limit: Number(req.query.limit) || 20,
     });
-    return sendSuccess(res, 200, "Sputum tests fetched", result);
+    return sendSuccess(res, "Sputum tests fetched", result, 200);
   } catch (err) {
-    return sendError(res, 500, err.message);
+    return sendError(res, err);
   }
 }
 
@@ -48,9 +48,9 @@ export async function getUpcomingTests(req, res) {
       role === "super_admin" ? req.query.barangay_id : userBarangay,
       req.query.days_ahead ? Number(req.query.days_ahead) : undefined,
     );
-    return sendSuccess(res, 200, "Upcoming sputum tests fetched", tests);
+    return sendSuccess(res, "Upcoming sputum tests fetched", tests, 200);
   } catch (err) {
-    return sendError(res, 500, err.message);
+    return sendError(res, err);
   }
 }
 
@@ -60,10 +60,8 @@ export async function getOverdueTests(req, res) {
     const tests = await sputumTestService.getOverdueTests(
       role === "super_admin" ? req.query.barangay_id : userBarangay,
     );
-    return sendSuccess(res, 200, "Overdue sputum tests fetched", tests);
-  } catch (err) {
-    return sendError(res, 500, err.message);
-  }
+    return sendSuccess(res, "Overdue sputum tests fetched", tests, 200);
+  } catch (err) { return sendError(res, err); }
 }
 
 export async function getPatientSputumSummary(req, res) {
@@ -75,17 +73,11 @@ export async function getPatientSputumSummary(req, res) {
         "user_id",
       );
       if (!patient || patient.user_id !== user_id)
-        return sendError(res, 403, "Access denied");
+        return sendError(res, { statusCode: 403, message: "Access denied" });
     }
     const summary = await sputumTestService.getPatientSputumSummary(patientId);
-    return sendSuccess(res, 200, "Patient sputum summary fetched", summary);
-  } catch (err) {
-    return sendError(
-      res,
-      err.message === "Patient not found" ? 404 : 500,
-      err.message,
-    );
-  }
+    return sendSuccess(res, "Patient sputum summary fetched", summary, 200);
+  } catch (err) { return sendError(res, err); }
 }
 
 export async function getSputumTest(req, res) {
@@ -97,16 +89,10 @@ export async function getSputumTest(req, res) {
         patient_id: test.patient_id,
       }).select("user_id");
       if (!patient || patient.user_id !== user_id)
-        return sendError(res, 403, "Access denied");
+        return sendError(res, { statusCode: 403, message: "Access denied" });
     }
-    return sendSuccess(res, 200, "Sputum test fetched", test);
-  } catch (err) {
-    return sendError(
-      res,
-      err.message === "Sputum test not found" ? 404 : 500,
-      err.message,
-    );
-  }
+    return sendSuccess(res, "Sputum test fetched", test, 200);
+  } catch (err) { return sendError(res, err); }
 }
 
 export async function enterResult(req, res) {
@@ -116,14 +102,8 @@ export async function enterResult(req, res) {
       req.body,
       req.user.user_id,
     );
-    return sendSuccess(res, 200, "Sputum test result entered", test);
-  } catch (err) {
-    return sendError(
-      res,
-      err.message === "Sputum test not found" ? 404 : 500,
-      err.message,
-    );
-  }
+    return sendSuccess(res, "Sputum test result entered", test, 200);
+  } catch (err) { return sendError(res, err); }
 }
 
 export async function updateSputumTest(req, res) {
@@ -132,12 +112,14 @@ export async function updateSputumTest(req, res) {
       req.params.testId,
       req.body,
     );
-    return sendSuccess(res, 200, "Sputum test updated", test);
-  } catch (err) {
-    return sendError(
-      res,
-      err.message === "Sputum test not found" ? 404 : 500,
-      err.message,
-    );
-  }
+    return sendSuccess(res, "Sputum test updated", test, 200);
+  } catch (err) { return sendError(res, err); }
 }
+
+export const getMyTests = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, status } = req.query;
+    const summary = await sputumTestService.getPatientSputumSummary(req.user.patient_id);
+    return sendSuccess(res, "Sputum tests retrieved.", summary);
+  } catch (err) { return sendError(res, err); }
+};

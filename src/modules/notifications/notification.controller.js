@@ -7,19 +7,19 @@ export async function registerToken(req, res) {
       req.user.user_id,
       req.body.fcm_token
     );
-    return sendSuccess(res, 200, "FCM token registered", result);
+    return sendSuccess(res, "FCM token registered", result, 200);
   } catch (err) {
     const status = err.message === "User not found" ? 404 : 500;
-    return sendError(res, status, err.message);
+    return sendError(res, err);
   }
 }
 
 export async function removeToken(req, res) {
   try {
     await notificationService.removeFcmToken(req.user.user_id);
-    return sendSuccess(res, 200, "FCM token removed");
+    return sendSuccess(res, "FCM token removed", null, 200);
   } catch (err) {
-    return sendError(res, 500, err.message);
+    return sendError(res, err);
   }
 }
 
@@ -27,9 +27,9 @@ export async function sendNotification(req, res) {
   try {
     const { user_ids, title, body, type, data } = req.body;
     const result = await notificationService.sendToUsers(user_ids, { title, body, type, data });
-    return sendSuccess(res, 200, "Notifications sent", result);
+    return sendSuccess(res, "Notifications sent", result, 200);
   } catch (err) {
-    return sendError(res, 500, err.message);
+    return sendError(res, err);
   }
 }
 
@@ -45,9 +45,9 @@ export async function broadcastNotification(req, res) {
       { title, body, type, data }
     );
 
-    return sendSuccess(res, 200, "Broadcast sent", result);
+    return sendSuccess(res, "Broadcast sent", result, 200);
   } catch (err) {
-    return sendError(res, 500, err.message);
+    return sendError(res, err);
   }
 }
 
@@ -66,18 +66,18 @@ export async function listNotifications(req, res) {
       limit: Number(req.query.limit) || 20,
     });
 
-    return sendSuccess(res, 200, "Notifications fetched", result);
+    return sendSuccess(res, "Notifications fetched", result, 200);
   } catch (err) {
-    return sendError(res, 500, err.message);
+    return sendError(res, err);
   }
 }
 
 export async function getUnreadCount(req, res) {
   try {
     const result = await notificationService.getUnreadCount(req.user.user_id);
-    return sendSuccess(res, 200, "Unread count fetched", result);
+    return sendSuccess(res, "Unread count fetched", result, 200);
   } catch (err) {
-    return sendError(res, 500, err.message);
+    return sendError(res, err);
   }
 }
 
@@ -87,18 +87,18 @@ export async function markRead(req, res) {
       req.user.user_id,
       req.body.notification_ids
     );
-    return sendSuccess(res, 200, "Notifications marked as read", result);
+    return sendSuccess(res, "Notifications marked as read", result, 200);
   } catch (err) {
-    return sendError(res, 500, err.message);
+    return sendError(res, err);
   }
 }
 
 export async function markAllRead(req, res) {
   try {
     const result = await notificationService.markAllAsRead(req.user.user_id);
-    return sendSuccess(res, 200, "All notifications marked as read", result);
+    return sendSuccess(res, "All notifications marked as read", result, 200);
   } catch (err) {
-    return sendError(res, 500, err.message);
+    return sendError(res, err);
   }
 }
 

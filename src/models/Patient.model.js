@@ -327,7 +327,7 @@ patientSchema.index({ treatment_phase: 1 });
 patientSchema.index({ is_active: 1 });
 
 // ── Pre-save: sync full_name ──────────────────────────────────
-patientSchema.pre('save', function (next) {
+patientSchema.pre('save', async function () {
   if (
     this.isModified('first_name') ||
     this.isModified('middle_name') ||
@@ -336,11 +336,9 @@ patientSchema.pre('save', function (next) {
     const parts = [this.first_name, this.middle_name, this.last_name].filter(Boolean);
     this.full_name = parts.join(' ');
   }
-  next();
 });
 
-// ── Pre-save: sync compliance_percentage & doses_remaining ───
-patientSchema.pre('save', function (next) {
+patientSchema.pre('save', async function () {
   if (
     this.isModified('compliance.doses_taken') ||
     this.isModified('compliance.total_doses_required')
@@ -352,7 +350,6 @@ patientSchema.pre('save', function (next) {
         ? parseFloat(((doses_taken / total_doses_required) * 100).toFixed(2))
         : 0;
   }
-  next();
 });
 
 // ── Static: get active patients by barangay ───────────────────
