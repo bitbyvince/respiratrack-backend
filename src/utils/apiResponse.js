@@ -7,11 +7,21 @@ export const createError = (statusCode, message) => {
   return err;
 };
 
-export const sendSuccess = (res, statusCode = 200, message = "Success", data = null) =>
-  sendResponse(res, statusCode, true, message, data);
+export const sendSuccess = (res, messageOrStatusCode = 200, dataOrMessage = null, data = null) => {
+  if (typeof messageOrStatusCode === "string") {
+    return sendResponse(res, 200, true, messageOrStatusCode, dataOrMessage);
+  }
+  return sendResponse(res, messageOrStatusCode, true, dataOrMessage ?? "Success", data);
+};
 
-export const sendError = (res, statusCode = 500, message = "Something went wrong") =>
-  sendResponse(res, statusCode, false, message, null);
+export const sendError = (res, statusCodeOrErr = 500, message = "Something went wrong") => {
+  if (typeof statusCodeOrErr === "object") {
+    const code = statusCodeOrErr?.statusCode ?? 500;
+    const msg  = statusCodeOrErr?.message ?? message;
+    return sendResponse(res, code, false, msg, null);
+  }
+  return sendResponse(res, statusCodeOrErr, false, message, null);
+};
 
 export const success = (res, message = "Success", data = null, statusCode = 200) =>
   sendResponse(res, statusCode, true, message, data);
