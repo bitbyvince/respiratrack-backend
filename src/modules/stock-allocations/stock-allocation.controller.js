@@ -7,7 +7,7 @@ export const createAllocation = async (req, res, next) => {
       req.body,
       req.user.user_id,
     );
-    return sendSuccess(res, 201, "Stock allocated successfully", allocation);
+    return sendSuccess(res, "Stock allocated successfully", allocation, 201);
   } catch (err) {
     next(err);
   }
@@ -16,7 +16,7 @@ export const createAllocation = async (req, res, next) => {
 export const getAllocations = async (req, res, next) => {
   try {
     const result = await allocationService.getAllocations(req.query);
-    return sendSuccess(res, 200, "Allocations retrieved successfully", result);
+    return sendSuccess(res, "Allocations retrieved successfully", result, 200);
   } catch (err) {
     next(err);
   }
