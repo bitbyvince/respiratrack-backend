@@ -10,7 +10,6 @@ import { generatePatientListPdf } from '../../utils/pdfExporter.js';
 import ROLES, { isSuperAdminLevel } from '../../constants/roles.js';
 import { createAlert } from '../alerts/alert.service.js';
 import { sendToDevice } from '../../utils/firebaseMessaging.js';
-import ROLES from '../../constants/roles.js';
 
 // ── PAGINATION ───────────────────────────────────────────
 const DEFAULT_PAGE = 1;
