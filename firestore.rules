@@ -1,0 +1,40 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Notification inbox — a signed-in user may only read/write
+    // their own inbox. Requires the client to be signed in with the
+    // backend-issued Firebase custom token (auth.uid == user_id),
+    // not anonymous auth.
+    match /notification_inbox/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      match /messages/{messageId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Notification preferences — same per-user scoping.
+    match /notification_preferences/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // FCM device tokens — a user manages only their own tokens.
+    match /fcm_tokens/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      match /devices/{deviceId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Everything else (otp_sessions, active_sessions,
+    // escalation_push_events, notification_logs, dedup_tracker,
+    // geofence_alerts) is written and read only by the backend via
+    // the Admin SDK, which always bypasses these rules regardless —
+    // so direct client access is denied by default.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
