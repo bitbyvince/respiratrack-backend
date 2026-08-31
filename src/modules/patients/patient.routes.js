@@ -24,10 +24,6 @@ router.get(
   patientController.listPatients,
 );
 router.get('/me', roleMiddleware(ROLES.PATIENT), patientController.getMyPatientProfile);
-router.get(
-  '/export/pdf',  // ← Moved up from bottom (fix from Tablet branch)
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.BARANGAY_ADMIN, ROLES.PATC),
-)
 router.patch(
   '/me/contact',
   roleMiddleware(ROLES.PATIENT),
@@ -36,7 +32,7 @@ router.patch(
 );
 router.get(
   '/export/pdf',  // ← Moved up from bottom (fix from Tablet branch)
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.BARANGAY_ADMIN),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.BARANGAY_ADMIN, ROLES.PATC),
   patientController.exportPatientsPdf,
 );
 

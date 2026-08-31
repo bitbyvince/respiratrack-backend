@@ -217,6 +217,20 @@ export const updatePatientSchema = Joi.object({
   });
 
 // ================================================================
+// UPDATE MY CONTACT (patient self-service)
+// ================================================================
+export const updateContactSchema = Joi.object({
+  phone_number: phoneField(false),
+  email: Joi.string().email().optional().allow(null, '').messages({
+    'string.email': 'Please provide a valid email address.',
+  }),
+})
+  .min(1)
+  .messages({
+    'object.min': 'At least phone number or email must be provided.',
+  });
+
+// ================================================================
 // UPDATE TREATMENT OUTCOME
 // ================================================================
 export const updateTreatmentOutcomeSchema = Joi.object({
@@ -273,3 +287,4 @@ export const listPatientsSchema = Joi.object({
     'string.max': 'Search query must not exceed 100 characters.',
   }),
 });
+
