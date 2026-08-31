@@ -129,16 +129,36 @@ export async function enterResult(req, res) {
 
 export async function updateSputumTest(req, res) {
   try {
-    const test = await sputumTestService.updateSputumTest(
-      req.params.testId,
-      req.body,
-    );
+    const test = await sputumTestService.updateSputumTest(req.params.testId, req.body);
     return sendSuccess(res, 200, "Sputum test updated", test);
   } catch (err) {
-    return sendError(
-      res,
-      err.message === "Sputum test not found" ? 404 : 500,
-      err.message,
-    );
+    return sendError(res, err.message === "Sputum test not found" ? 404 : 500, err.message);
+  }
+}
+
+export async function reportSampleSubmitted(req, res) {
+  try {
+    const patient = await Patient.findOne({ user_id: req.user.user_id });
+    if (!patient) return sendError(res, 404, "Patient not found");
+    const month = Number(req.params.month);
+    const schedule = await sputumTestService.reportSampleSubmitted(patient.patient_id, month);
+    return sendSuccess(res, 200, "Thanks — your health center has been notified.", { schedule });
+  } catch (err) {
+    return sendError(res, 400, err.message);
+  }
+}
+
+export async function getMySputumTests(req, res) {
+  try {
+    const patient = await Patient.findOne({ user_id: req.user.user_id });
+    if (!patient) return sendError(res, 404, "Patient not found");
+    const result = await sputumTestService.listSputumTests({
+      patient_id: patient.patient_id,
+      page: Number(req.query.page) || 1,
+      limit: Number(req.query.limit) || 60,
+    });
+    return sendSuccess(res, 200, "Sputum tests fetched", result);
+  } catch (err) {
+    return sendError(res, 500, err.message);
   }
 }

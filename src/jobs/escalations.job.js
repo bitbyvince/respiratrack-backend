@@ -2,7 +2,9 @@ import cron from "node-cron";
 import Patient from "../models/Patient.model.js";
 import Alert from "../models/Alert.model.js";
 import EscalationLog from "../models/EscalationLog.model.js";
+import User from "../models/User.model.js";
 import { resolveEscalationLevel } from "../utils/riskScoring.js";
+import { notifyPatient } from "../utils/notifyPatient.js";
 import logger from "../utils/logger.js";
 
 const ESCALATION_META = {
@@ -11,18 +13,24 @@ const ESCALATION_META = {
     severity: "Warning",
     target_roles: ["nurse"],
     label: "missed 2 or more consecutive doses — Missed Dose Alert",
+    patientMessage:
+      "You've missed 2 or more doses in a row. Please don't stop your treatment — take your medicine today.",
   },
   2: {
     alert_type: "Escalation L2",
     severity: "Warning",
     target_roles: ["nurse", "barangay_admin"],
     label: "missed 7 or more consecutive doses — At Risk of Interruption",
+    patientMessage:
+      "You've missed 7 or more doses in a row. Your health center has been notified — please visit or contact them as soon as possible.",
   },
   3: {
     alert_type: "Escalation L3",
     severity: "Critical",
     target_roles: ["nurse", "barangay_admin", "super_admin"],
     label: "missed 30 or more consecutive doses and is classified as Lost to Follow-Up",
+    patientMessage:
+      "You've missed 30 or more doses in a row. This is critical — please contact your health center immediately to continue your treatment safely.",
   },
 };
 
@@ -57,8 +65,7 @@ const runEscalationJob = async () => {
         },
       );
 
-      const alertCount = await Alert.countDocuments({});
-      const alertId = `ALT-${String(alertCount + 1).padStart(4, "0")}`;
+      const alertId = await Alert.generateNextId();
 
       await Alert.create({
         alert_id: alertId,
@@ -102,6 +109,22 @@ const runEscalationJob = async () => {
         resolution_notes: "",
         created_at: now,
       });
+
+      if (patient.user_id) {
+        const user = await User.findOne({ user_id: patient.user_id });
+        await notifyPatient({
+          userId: patient.user_id,
+          fcmToken: user?.fcm_token,
+          type: "escalation",
+          title: "Please Take Your Medication",
+          body: meta.patientMessage,
+          data: {
+            deep_link: "respiratrack://medication-log",
+            escalation_id: logId,
+            level: String(newLevel),
+          },
+        });
+      }
 
       logger.warn(
         `[escalation.job] Patient ${patient.tb_case_number} escalated to Level ${newLevel} ` +

@@ -3,6 +3,7 @@ import Patient from "../models/Patient.model.js";
 import Alert from "../models/Alert.model.js";
 import User from "../models/User.model.js";
 import { sendToDevice } from "../utils/firebaseMessaging.js";
+import { notifyPatient } from "../utils/notifyPatient.js";
 import logger from "../utils/logger.js";
 
 const addDays = (date, days) => {
@@ -43,8 +44,7 @@ const runSputumReminderJob = async () => {
       });
 
       if (!existingAlert) {
-        const alertCount = await Alert.countDocuments({});
-        const alertId = `ALT-${String(alertCount + 1).padStart(4, "0")}`;
+        const alertId = await Alert.generateNextId();
 
         await Alert.create({
           alert_id: alertId,
@@ -69,26 +69,22 @@ const runSputumReminderJob = async () => {
         ? await User.findOne({ user_id: patient.user_id })
         : null;
 
-      if (patientUser?.fcm_token) {
-        try {
-          await sendToDevice({
-            fcmToken: patientUser.fcm_token,
-            title: "Sputum Test Reminder",
-            body:
-              `Your Month ${upcomingTest.month} sputum test is due on ` +
-              `${reminderDate.toDateString()}. Please visit your health center.`,
-            data: {
-              type: "sputum_reminder",
-              tb_case_number: patient.tb_case_number,
-              due_date: reminderDate.toISOString(),
-              month: String(upcomingTest.month),
-            },
-          });
-        } catch (fcmErr) {
-          logger.warn(
-            `[sputumReminder.job] FCM to patient failed: ${fcmErr.message}`,
-          );
-        }
+      if (patient.user_id) {
+        await notifyPatient({
+          userId: patient.user_id,
+          fcmToken: patientUser?.fcm_token,
+          type: "sputum_reminder",
+          title: "Sputum Test Reminder",
+          body:
+            `Your Month ${upcomingTest.month} sputum test is due on ` +
+            `${reminderDate.toDateString()}. Please visit your health center.`,
+          data: {
+            deep_link: "respiratrack://sputum",
+            tb_case_number: patient.tb_case_number,
+            due_date: reminderDate.toISOString(),
+            month: String(upcomingTest.month),
+          },
+        });
       }
 
       const nurse = patient.assigned_nurse_id

@@ -22,7 +22,19 @@ router.get(
   "/patient/:patientId",
   authenticate,
   authorizeRoles("nurse", "barangay_admin", "super_admin", "patc"),
-  controller.getPatientLogs,
+)
+router .get(
+  "/history",
+  authenticate,
+  authorizeRoles("patient"),
+  controller.getMyHistory,
+);
+
+router.get(
+  "/today",
+  authenticate,
+  authorizeRoles("patient"),
+  controller.getMyTodayLog,
 );
 
 router.get(

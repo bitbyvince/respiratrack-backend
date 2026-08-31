@@ -22,7 +22,6 @@ function normalizeDateRange(from, to) {
       query.$lte = end;
     }
   }
-
   return Object.keys(query).length ? query : null;
 }
 

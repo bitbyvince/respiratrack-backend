@@ -62,12 +62,13 @@ const AppointmentSchema = new Schema(
       ],
     },
 
-    physician: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 100,
-    },
+physician: {
+  type: String,
+  required: false,
+  default: '',
+  trim: true,
+  maxlength: 100,
+},
 
     scheduled_date: {
       type: Date,

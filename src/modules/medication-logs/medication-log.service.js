@@ -1,5 +1,6 @@
 import MedicationLog from "../../models/MedicationLog.model.js";
 import Patient from "../../models/Patient.model.js";
+import { computeStreaks } from "../../utils/streakCalculator.js";
 
 const generateLogId = async () => {
   const count = await MedicationLog.countDocuments();
@@ -14,6 +15,11 @@ export async function logMedication(data, user) {
 
   const dateObj = log_date ? new Date(log_date) : new Date();
   const dateOnly = dateObj.toISOString().split("T")[0];
+  const todayOnly = new Date().toISOString().split("T")[0];
+
+  if (user.role === "patient" && dateOnly < todayOnly) {
+    throw new Error("That day has already ended and can no longer be logged.");
+  }
 
   const existing = await MedicationLog.findOne({
     patient_id,
@@ -74,6 +80,11 @@ async function updatePatientCompliance(patient, overall_status, logDate) {
     if (log.overall_status === "Missed") consecutive_missed_doses++;
     else break;
   }
+  const { consecutiveDaysTaken, consecutiveMissedDoses } = await computeStreaks(
+    patient.patient_id,
+    patient.date_started,
+  );
+  
 
   const risk_level =
     consecutive_missed_doses >= 14
@@ -91,6 +102,7 @@ async function updatePatientCompliance(patient, overall_status, logDate) {
         "compliance.doses_remaining": patient.compliance.total_doses_required - takenLogs,
         "compliance.compliance_percentage": parseFloat(compliance_percentage.toFixed(2)),
         "compliance.consecutive_missed_doses": consecutive_missed_doses,
+        "compliance.consecutive_days_taken": consecutiveDaysTaken,
         "compliance.risk_level": risk_level,
         "compliance.last_dose_taken":
           overall_status !== "Missed" ? logDate : patient.compliance.last_dose_taken,

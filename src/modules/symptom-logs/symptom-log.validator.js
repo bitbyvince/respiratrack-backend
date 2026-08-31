@@ -11,6 +11,10 @@ const VALID_SYMPTOMS = [
   "Fever",
   "Fatigue",
   "Other",
+  "Hearing Loss",
+  "Tingling in Hands/Feet",
+  "Dark Urine",
+  "Yellowing of Skin",
 ];
 
 const symptomEntrySchema = Joi.object({

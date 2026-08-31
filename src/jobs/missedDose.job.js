@@ -1,158 +1,118 @@
-import cron from 'node-cron';
-import Patient from '../models/Patient.model.js';
-import Alert from '../models/Alert.model.js';
-import { sendToDevice } from '../utils/firebaseMessaging.js';
-import User from '../models/User.model.js';
-import logger from '../utils/logger.js';
+import cron from "node-cron";
+import Patient from "../models/Patient.model.js";
+import MedicationLog from "../models/MedicationLog.model.js";
+import User from "../models/User.model.js";
+import { computeComplianceSummary } from "../utils/complianceCalculator.js";
+import { computeStreaks } from "../utils/streakCalculator.js";
+import { notifyPatient } from "../utils/notifyPatient.js";
+import logger from "../utils/logger.js";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const addDays = (date, days) => {
-  const result = new Date(date);
-  result.setDate(result.getDate() + days);
-  result.setHours(0, 0, 0, 0);
-  return result;
+const dateOnly = (d) => {
+  const copy = new Date(d);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
 };
 
-const isSameDay = (a, b) =>
-  a.getFullYear() === b.getFullYear() &&
-  a.getMonth()    === b.getMonth()    &&
-  a.getDate()     === b.getDate();
+const addDays = (d, days) => {
+  const copy = new Date(d);
+  copy.setDate(copy.getDate() + days);
+  return copy;
+};
 
-// ─── Job ──────────────────────────────────────────────────────────────────────
-
-/**
- * Sputum Test Reminder Job
- * Runs daily at 08:00 AM (Philippine Time).
- *
- * For each active patient:
- *  1. Check their sputum_test_schedule for any Pending test
- *     due in exactly 3 days from today
- *  2. If found:
- *     a. Create a 'Sputum Test Due' alert targeting nurse + barangay_admin
- *     b. Push an FCM notification to the patient's mobile device (if token exists)
- *     c. Push an FCM notification to the assigned nurse
- */
-export const runSputumReminderJob = async () => {
-  logger.info('[sputumReminder.job] Checking upcoming sputum tests...');
+export const runMissedDoseJob = async () => {
+  logger.info("[missedDose.job] Checking for patients who missed a dose...");
 
   try {
-    const today        = new Date();
-    today.setHours(0, 0, 0, 0);
-    const reminderDate = addDays(today, 3);
+    const now = new Date();
+    const todayStart = dateOnly(now);
 
-    const patients = await Patient.find({ is_active: true });
+    const patients = await Patient.find({
+      is_active: true,
+      date_started: { $lte: now },
+      end_date: { $gte: now },
+    });
 
     for (const patient of patients) {
-      const schedule = patient.sputum_test_schedule ?? [];
+      const cursorStart = patient.compliance?.last_missed_check
+        ? addDays(dateOnly(patient.compliance.last_missed_check), 1)
+        : dateOnly(patient.date_started);
 
-      const upcomingTest = schedule.find(
-        (entry) =>
-          entry.status === 'Pending' &&
-          isSameDay(new Date(entry.due_date), reminderDate),
-      );
+      if (cursorStart > todayStart) continue;
 
-      if (!upcomingTest) continue;
-
-      logger.info(
-        `[sputumReminder.job] Reminder triggered for ${patient.tb_case_number} ` +
-        `— Month ${upcomingTest.month} test due on ${reminderDate.toDateString()}`,
-      );
-
-      // ── 1. Avoid duplicate alerts ────────────────────────────
-      const existingAlert = await Alert.findOne({
-        patient_id: patient.patient_id,
-        alert_type: 'Sputum Test Due',
-        created_at: { $gte: today },
-      });
-
-      if (!existingAlert) {
-        const alertCount = await Alert.countDocuments({});
-        const alertId    = `ALT-${String(alertCount + 1).padStart(4, '0')}`;
-
-        await Alert.create({
-          alert_id:         alertId,
-          patient_id:       patient.patient_id,
-          tb_case_number:   patient.tb_case_number,
-          barangay_id:      patient.barangay_id,
-          alert_type:       'Sputum Test Due',
-          escalation_level: 0,
-          message:
-            `Patient ${patient.tb_case_number} has a Month ${upcomingTest.month} ` +
-            `sputum test due on ${reminderDate.toDateString()}.`,
-          severity:     'Info',
-          status:       'Active',
-          target_roles: ['nurse', 'barangay_admin'],
-          created_at:   new Date(),
-          resolved_at:  null,
-          resolved_by:  null,
+      const missedDays = [];
+      for (
+        let day = cursorStart;
+        day <= todayStart;
+        day = addDays(day, 1)
+      ) {
+        const dayEnd = addDays(day, 1);
+        const loggedThatDay = await MedicationLog.exists({
+          patient_id: patient.patient_id,
+          log_date: { $gte: day, $lt: dayEnd },
         });
+        if (!loggedThatDay) missedDays.push(new Date(day));
       }
 
-      // ── 2. Push notification to patient ─────────────────────
-      const patientUser = patient.user_id
-        ? await User.findOne({ user_id: patient.user_id })
-        : null;
+      if (missedDays.length === 0) {
+        await Patient.updateOne(
+          { patient_id: patient.patient_id },
+          { $set: { "compliance.last_missed_check": todayStart } },
+        );
+        continue;
+      }
 
-      if (patientUser?.fcm_token) {
-        try {
-          await sendToDevice({
-            fcmToken: patientUser.fcm_token,
-            title:    'Sputum Test Reminder',
-            body:
-              `Your Month ${upcomingTest.month} sputum test is due on ` +
-              `${reminderDate.toDateString()}. Please visit your health center.`,
+      const dosesTaken = patient.compliance?.doses_taken ?? 0;
+      const totalRequired = patient.compliance?.total_doses_required ?? 0;
+      const dosesMissed = (patient.compliance?.doses_missed ?? 0) + missedDays.length;
+
+      const { consecutiveDaysTaken, consecutiveMissedDoses } =
+        await computeStreaks(patient.patient_id, patient.date_started);
+
+      const summary = computeComplianceSummary({
+        totalDosesRequired: totalRequired,
+        dosesTaken,
+        dosesMissed,
+        consecutiveMissedDoses,
+        lastDoseTaken: patient.compliance?.last_dose_taken ?? null,
+      });
+      summary.consecutive_days_taken = consecutiveDaysTaken;
+      summary.last_missed_check = todayStart;
+
+      await Patient.updateOne(
+        { patient_id: patient.patient_id },
+        { $set: { compliance: summary, updated_at: now } },
+      );
+
+      if (patient.user_id) {
+        const user = await User.findOne({ user_id: patient.user_id });
+        for (const missedDay of missedDays) {
+          await notifyPatient({
+            userId: patient.user_id,
+            fcmToken: user?.fcm_token,
+            type: "missed_dose",
+            title: "You missed your medication",
+            body: `We didn't see a medication log from you on ${missedDay.toDateString()}. Please don't skip your treatment — log your next dose as soon as you can.`,
             data: {
-              type:           'sputum_reminder',
+              deep_link: "respiratrack://medication-log",
               tb_case_number: patient.tb_case_number,
-              due_date:       reminderDate.toISOString(),
-              month:          String(upcomingTest.month),
+              missed_date: missedDay.toISOString().split("T")[0],
             },
           });
-          logger.info(`[sputumReminder.job] FCM sent to patient ${patient.tb_case_number}`);
-        } catch (fcmErr) {
-          logger.warn(`[sputumReminder.job] FCM to patient failed: ${fcmErr.message}`);
         }
       }
 
-      // ── 3. Push notification to assigned nurse ───────────────
-      const nurse = patient.assigned_nurse_id
-        ? await User.findOne({ user_id: patient.assigned_nurse_id })
-        : null;
-
-      if (nurse?.fcm_token) {
-        try {
-          await sendToDevice({
-            fcmToken: nurse.fcm_token,
-            title:    'Sputum Test Due — Patient Reminder',
-            body:
-              `${patient.full_name} (${patient.tb_case_number}) has a ` +
-              `Month ${upcomingTest.month} sputum test due on ${reminderDate.toDateString()}.`,
-            data: {
-              type:           'sputum_reminder',
-              patient_id:     patient.patient_id,
-              tb_case_number: patient.tb_case_number,
-              due_date:       reminderDate.toISOString(),
-            },
-          });
-          logger.info(
-            `[sputumReminder.job] FCM sent to nurse ${nurse.user_id} for patient ${patient.tb_case_number}`,
-          );
-        } catch (fcmErr) {
-          logger.warn(`[sputumReminder.job] FCM to nurse failed: ${fcmErr.message}`);
-        }
-      }
+      logger.warn(
+        `[missedDose.job] ${patient.tb_case_number} missed ${missedDays.length} day(s) — streak now ${consecutiveMissedDoses}`,
+      );
     }
 
-    logger.info('[sputumReminder.job] Sputum reminder job completed.');
+    logger.info("[missedDose.job] Completed.");
   } catch (err) {
-    logger.error(`[sputumReminder.job] Error: ${err.message}`);
+    logger.error(`[missedDose.job] Error: ${err.message}`);
   }
 };
 
-// ─── Cron Schedule ────────────────────────────────────────────────────────────
-
-export const scheduleSputumReminderJob = () => {
-  cron.schedule('0 8 * * *', runSputumReminderJob, { timezone: 'Asia/Manila' });
-  logger.info('[sputumReminder.job] Scheduled — daily at 08:00 Asia/Manila');
+export const scheduleMissedDoseJob = () => {
+  cron.schedule("0 21 * * *", runMissedDoseJob, { timezone: "Asia/Manila" });
+  logger.info("[missedDose.job] Scheduled — daily at 21:00 Asia/Manila");
 };

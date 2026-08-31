@@ -1,8 +1,10 @@
 import SputumTest from "../../models/SputumTest.model.js";
 import Patient from "../../models/Patient.model.js";
 import Alert from "../../models/Alert.model.js";
+import User from "../../models/User.model.js";
 import { ALERT_TYPES } from "../../constants/alertTypes.js";
 import { ROLES } from "../../constants/roles.js";
+import { sendToDevice } from "../../utils/firebaseMessaging.js";
 
 async function generateTestId() {
   const latest = await SputumTest.findOne()
@@ -220,6 +222,62 @@ export async function getOverdueTests(barangayId) {
       (new Date() - new Date(t.due_date)) / (1000 * 60 * 60 * 24),
     ),
   }));
+}
+
+export async function reportSampleSubmitted(patientId, month) {
+  const patient = await Patient.findOne({ patient_id: patientId });
+  if (!patient) throw new Error("Patient not found");
+
+  const entry = patient.sputum_test_schedule.find((s) => s.month === month);
+  if (!entry) throw new Error(`No Month ${month} sputum test is scheduled for this patient`);
+  if (entry.status === "Completed")
+    throw new Error(`Month ${month} sputum test has already been completed`);
+
+  const now = new Date();
+  await Patient.updateOne(
+    { patient_id: patientId, "sputum_test_schedule.month": month },
+    { $set: { "sputum_test_schedule.$.patient_reported_at": now, updated_at: now } },
+  );
+
+  const alertId = await Alert.generateNextId();
+  await Alert.create({
+    alert_id: alertId,
+    patient_id: patient.patient_id,
+    tb_case_number: patient.tb_case_number,
+    barangay_id: patient.barangay_id,
+    alert_type: ALERT_TYPES.SPUTUM_SAMPLE_SUBMITTED,
+    escalation_level: 0,
+    message: `Patient ${patient.tb_case_number} reported submitting their Month ${month} sputum sample. Please enter the lab result once available.`,
+    severity: "Info",
+    status: "Active",
+    target_roles: [ROLES.NURSE, ROLES.BARANGAY_ADMIN],
+    created_at: now,
+    resolved_at: null,
+    resolved_by: null,
+  });
+
+  if (patient.assigned_nurse_id) {
+    const nurse = await User.findOne({ user_id: patient.assigned_nurse_id });
+    if (nurse?.fcm_token) {
+      try {
+        await sendToDevice({
+          fcmToken: nurse.fcm_token,
+          title: "Sputum Sample Submitted",
+          body: `${patient.full_name} (${patient.tb_case_number}) reported submitting their Month ${month} sample.`,
+          data: {
+            type: "sputum_sample_submitted",
+            patient_id: patient.patient_id,
+            tb_case_number: patient.tb_case_number,
+            month: String(month),
+          },
+        });
+      } catch (_) {}
+    }
+  }
+
+  return patient.sputum_test_schedule.map((s) =>
+    s.month === month ? { ...s.toObject(), patient_reported_at: now } : s,
+  );
 }
 
 export async function getPatientSputumSummary(patientId) {

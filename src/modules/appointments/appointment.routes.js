@@ -30,6 +30,27 @@ router.get(
 );
 
 router.get(
+  '/my',
+  authenticate,
+  authorize('patient'),
+  controller.getMyAppointments,
+);
+
+router.get(
+  '/available-slots',
+  authenticate,
+  authorize('patient'),
+  controller.getAvailableSlots,
+);
+
+router.get(
+  '/',
+  authenticate,
+  authorize('nurse', 'barangay_admin', 'super_admin', 'patc'),
+  controller.getAppointments,
+);
+
+router.get(
   '/patient/:patientId',
   authenticate,
   authorize('nurse', 'barangay_admin', 'super_admin', 'patient', 'patc'),

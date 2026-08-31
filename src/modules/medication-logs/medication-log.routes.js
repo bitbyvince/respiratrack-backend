@@ -22,7 +22,10 @@ router.get(
   "/patient/:patientId",
   authenticate,
   authorize("nurse", "barangay_admin", "super_admin", "patc"),
-  controller.getPatientLogs
+  "/my",
+  authenticate,
+  authorize("patient"),
+  controller.getMyLogs
 );
 
 router.get(

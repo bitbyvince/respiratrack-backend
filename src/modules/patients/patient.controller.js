@@ -26,6 +26,15 @@ export const getMyPatientProfile = async (req, res) => {
   }
 };
 
+export const updateMyContact = async (req, res) => {
+  try {
+    const updated = await patientService.updateMyContact(req.user.user_id, req.body);
+    return sendSuccess(res, 200, 'Contact information updated.', updated);
+  } catch (err) {
+    return sendError(res, err.statusCode || 500, err.message);
+  }
+};
+
 export const getPatient = async (req, res) => {
   try {
     const patient = await patientService.getPatientById(req.params.patient_id, req.user);

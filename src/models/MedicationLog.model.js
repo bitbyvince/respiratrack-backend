@@ -21,6 +21,7 @@ const medicineEntrySchema = new mongoose.Schema(
       required: true,
       trim: true,
       // e.g. "300mg", "600mg", "1500mg", "1200mg"
+      
     },
     unit: {
       type: String,

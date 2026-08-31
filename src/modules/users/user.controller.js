@@ -24,44 +24,44 @@ export const getStaff = async (req, res) => {
 
 export const createStaff = async (req, res) => {
   try {
-    return sendSuccess(res, 201, "Staff account created successfully.", await userService.createStaff(req.body, req.user));
+    return sendSuccess(res, "Staff account created successfully.", await userService.createStaff(req.body, req.user), 201);
   } catch (err) {
-    return sendError(res, err.statusCode || 500, err.message);
+    return sendError(res, err);
   }
 };
 
 export const updateStaff = async (req, res) => {
   try {
-    return sendSuccess(res, 200, "Staff account updated.", await userService.updateStaff(req.params.user_id, req.body, req.user));
+    return sendSuccess(res, "Staff account updated.", await userService.updateStaff(req.params.user_id, req.body, req.user));
   } catch (err) {
-    return sendError(res, err.statusCode || 500, err.message);
+    return sendError(res, err);
   }
 };
 
 export const deactivateStaff = async (req, res) => {
   try {
     await userService.setStaffActiveStatus(req.params.user_id, false, req.user);
-    return sendSuccess(res, 200, "Staff account deactivated.");
+    return sendSuccess(res, "Staff account deactivated.");
   } catch (err) {
-    return sendError(res, err.statusCode || 500, err.message);
+    return sendError(res, err);
   }
 };
 
 export const reactivateStaff = async (req, res) => {
   try {
     await userService.setStaffActiveStatus(req.params.user_id, true, req.user);
-    return sendSuccess(res, 200, "Staff account reactivated.");
+    return sendSuccess(res, "Staff account reactivated.");
   } catch (err) {
-    return sendError(res, err.statusCode || 500, err.message);
+    return sendError(res, err);
   }
 };
 
 export const deleteStaff = async (req, res) => {
   try {
     await userService.deleteStaff(req.params.user_id, req.user);
-    return sendSuccess(res, 200, "Staff account permanently deleted.");
+    return sendSuccess(res, "Staff account permanently deleted.");
   } catch (err) {
-    return sendError(res, err.statusCode || 500, err.message);
+    return sendError(res, err);
   }
 };
 
@@ -95,51 +95,51 @@ export const createPatientAccount = async (req, res) => {
 
 export const updatePatientAccount = async (req, res) => {
   try {
-    return sendSuccess(res, 200, "Patient account updated.", await userService.updatePatientAccount(req.params.user_id, req.body, req.user));
+    return sendSuccess(res, "Patient account updated.", await userService.updatePatientAccount(req.params.user_id, req.body, req.user));
   } catch (err) {
-    return sendError(res, err.statusCode || 500, err.message);
+    return sendError(res, err);
   }
 };
 
 export const deactivatePatientAccount = async (req, res) => {
   try {
     await userService.setPatientAccountActiveStatus(req.params.user_id, false, req.user);
-    return sendSuccess(res, 200, "Patient account deactivated.");
+    return sendSuccess(res, "Patient account deactivated.");
   } catch (err) {
-    return sendError(res, err.statusCode || 500, err.message);
+    return sendError(res, err);
   }
 };
 
 export const reactivatePatientAccount = async (req, res) => {
   try {
     await userService.setPatientAccountActiveStatus(req.params.user_id, true, req.user);
-    return sendSuccess(res, 200, "Patient account reactivated.");
+    return sendSuccess(res, "Patient account reactivated.");
   } catch (err) {
-    return sendError(res, err.statusCode || 500, err.message);
+    return sendError(res, err);
   }
 };
 
 export const getMyProfile = async (req, res) => {
   try {
-    return sendSuccess(res, 200, "Profile retrieved.", await userService.getUserById(req.user.user_id));
+    return sendSuccess(res, "Profile retrieved.", await userService.getUserById(req.user.user_id));
   } catch (err) {
-    return sendError(res, err.statusCode || 500, err.message);
+    return sendError(res, err);
   }
 };
 
 export const updateMyProfile = async (req, res) => {
   try {
-    return sendSuccess(res, 200, "Profile updated successfully.", await userService.updateMyProfile(req.user.user_id, req.body));
+    return sendSuccess(res, "Profile updated successfully.", await userService.updateMyProfile(req.user.user_id, req.body));
   } catch (err) {
-    return sendError(res, err.statusCode || 500, err.message);
+    return sendError(res, err);
   }
 };
 
 export const resetPatientPin = async (req, res) => {
   try {
     const result = await userService.resetPatientPin(req.params.patient_id, req.user);
-    return sendSuccess(res, 200, "PIN reset successfully.", result);
+    return sendSuccess(res, 'PIN reset successfully.', result);
   } catch (err) {
-    return sendError(res, err.statusCode || 500, err.message);
+    return sendError(res, err);
   }
 };

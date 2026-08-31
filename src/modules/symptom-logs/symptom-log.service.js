@@ -75,6 +75,16 @@ export const getPatientLogs = async (
 export const getLatestLog = async (patientId) =>
   SymptomLog.findOne({ patient_id: patientId }).sort({ logged_at: -1 });
 
+export const getTodayLog = async (patientId) => {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start.getTime() + 86400000);
+  return SymptomLog.findOne({
+    patient_id: patientId,
+    logged_at: { $gte: start, $lt: end },
+  });
+};
+
 export const getBarangayLogs = async (barangayId, { date, reviewed }) => {
   const query = { barangay_id: barangayId };
   if (date) {

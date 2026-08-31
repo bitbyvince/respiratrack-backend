@@ -25,6 +25,7 @@ const sputumTestScheduleEntrySchema = new mongoose.Schema(
     month:    { type: Number, required: true },          // 2 | 5 | 6
     due_date: { type: Date,   required: true },
     status:   { type: String, required: true, enum: ['Pending', 'Completed', 'Missed'], default: 'Pending' },
+    patient_reported_at: { type: Date, default: null },
   },
   { _id: false },
 );
@@ -255,7 +256,9 @@ const patientSchema = new mongoose.Schema(
         default: 'Pending',
       },
       consecutive_missed_doses: { type: Number, default: 0, min: 0 },
+      consecutive_days_taken:   { type: Number, default: 0, min: 0 },
       last_dose_taken:          { type: Date,   default: null },
+      last_missed_check:        { type: Date,   default: null },
       risk_level: {
         type: String,
         enum: ['Compliant', 'At Risk', 'Defaulter'],
