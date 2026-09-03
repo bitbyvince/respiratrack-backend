@@ -10,6 +10,20 @@ export async function logMedication(req, res) {
   }
 }
 
+export async function getMyLogs(req, res) {
+  try {
+    const { page = 1, limit = 60, status, from, to, date } = req.query;
+    const resolvedFrom = from ?? date;
+    const resolvedTo = to ?? date;
+    const result = await service.getPatientLogs(req.user.patient_id, {
+      page, limit, status, from: resolvedFrom, to: resolvedTo,
+    });
+    return success(res, "Medication logs retrieved.", result);
+  } catch (err) {
+    return error(res, err.message, 400);
+  }
+}
+
 export async function getPatientLogs(req, res) {
   try {
     const { patientId } = req.params;

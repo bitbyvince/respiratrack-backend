@@ -23,6 +23,13 @@ router.get(
 );
 
 router.get(
+  '/available-slots',
+  authenticate,
+  authorize('patient'),
+  controller.getAvailableSlots,
+);
+
+router.get(
   '/',
   authenticate,
   authorize('nurse', 'barangay_admin', 'super_admin'),

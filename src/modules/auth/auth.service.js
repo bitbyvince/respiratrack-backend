@@ -28,6 +28,13 @@ async function issueTokens(user) {
   const accessToken = signAccessToken(payload);
   const refreshToken = signRefreshToken(payload);
 
+  // Firebase custom token, keyed to the SAME user_id used everywhere
+  // else (Mongo, Firestore document paths). Without this, the app
+  // could only sign in to Firebase anonymously — a random UID with
+  // no relation to user_id, which made it impossible for Firestore
+  // Security Rules to ever restrict a user to their own data.
+  const firebaseToken = await firebaseAdmin.auth().createCustomToken(user.user_id);
+
   const hashedRefresh = await bcrypt.hash(refreshToken, 10);
   await User.findOneAndUpdate(
     { user_id: user.user_id },
@@ -37,6 +44,7 @@ async function issueTokens(user) {
   return {
     accessToken,
     refreshToken,
+    firebaseToken,
     role: user.role,
     barangay_id: user.barangay_id || null,
     barangay_name: user.barangay_name || null,

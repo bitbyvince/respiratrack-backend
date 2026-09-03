@@ -106,6 +106,18 @@ export async function updateSputumTest(req, res) {
   }
 }
 
+export async function reportSampleSubmitted(req, res) {
+  try {
+    const patient = await Patient.findOne({ user_id: req.user.user_id });
+    if (!patient) return sendError(res, 404, "Patient not found");
+    const month = Number(req.params.month);
+    const schedule = await sputumTestService.reportSampleSubmitted(patient.patient_id, month);
+    return sendSuccess(res, 200, "Thanks — your health center has been notified.", { schedule });
+  } catch (err) {
+    return sendError(res, 400, err.message);
+  }
+}
+
 export async function getMySputumTests(req, res) {
   try {
     const patient = await Patient.findOne({ user_id: req.user.user_id });

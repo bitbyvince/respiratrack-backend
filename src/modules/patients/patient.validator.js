@@ -217,6 +217,20 @@ export const updatePatientSchema = Joi.object({
   });
 
 // ================================================================
+// UPDATE MY CONTACT INFO (self-service, patient role)
+// ================================================================
+export const updateContactSchema = Joi.object({
+  phone_number: phoneField(false),
+  email: Joi.string().email().optional().allow(null, '').messages({
+    'string.email': 'Please provide a valid email address.',
+  }),
+})
+  .min(1)
+  .messages({
+    'object.min': 'Provide at least a phone number or email to update.',
+  });
+
+// ================================================================
 // UPDATE TREATMENT OUTCOME
 // ================================================================
 export const updateTreatmentOutcomeSchema = Joi.object({

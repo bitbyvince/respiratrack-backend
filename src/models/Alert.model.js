@@ -58,7 +58,9 @@ const AlertSchema = new Schema(
         "Escalation L3", // Add 2: consecutive_missed >= 14 → super admin
         "Low Stock", // medicine_inventory stock_status = Low/Critical
         "Sputum Test Due", // sputum test approaching (3 days before due_date)
+        "Sputum Sample Submitted", // patient self-reported handing in a sample
         "Appointment Reminder", // 24h before scheduled appointment
+        "Contact Info Updated", // patient changed their phone number or email
       ],
     },
 
@@ -195,6 +197,18 @@ AlertSchema.methods.resolve = async function (userId, notes = "") {
 };
 
 // ── Static methods ─────────────────────────────────────────
+// Generates the next sequential alert_id from the highest existing
+// one, rather than from a total document count — a count-based
+// generator collides as soon as any alert is deleted (or the
+// sequence has any gap), since the count no longer matches the
+// highest id actually in use.
+AlertSchema.statics.generateNextId = async function () {
+  const latest = await this.findOne().sort({ alert_id: -1 }).select("alert_id");
+  if (!latest) return "ALT-0001";
+  const num = parseInt(latest.alert_id.replace("ALT-", ""), 10) + 1;
+  return `ALT-${String(num).padStart(4, "0")}`;
+};
+
 // Fetch all active alerts for a barangay (used by nurse + barangay admin)
 AlertSchema.statics.getActiveByBarangay = function (barangayId) {
   return this.find({

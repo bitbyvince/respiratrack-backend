@@ -10,6 +10,27 @@ export const logSymptom = async (req, res) => {
   }
 };
 
+export const getMyHistory = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, from, to, severity } = req.query;
+    const result = await service.getPatientLogs(req.user.patient_id, {
+      page, limit, from, to, severity,
+    });
+    return success(res, "Symptom logs retrieved.", result);
+  } catch (err) {
+    return error(res, err.message, 400);
+  }
+};
+
+export const getMyTodayLog = async (req, res) => {
+  try {
+    const log = await service.getTodayLog(req.user.patient_id);
+    return success(res, "Today's symptom log retrieved.", log);
+  } catch (err) {
+    return error(res, err.message, 400);
+  }
+};
+
 export const getPatientLogs = async (req, res) => {
   try {
     const { patientId } = req.params;

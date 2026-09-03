@@ -19,6 +19,13 @@ router.post(
 );
 
 router.get(
+  "/my",
+  authenticate,
+  authorize("patient"),
+  controller.getMyLogs
+);
+
+router.get(
   "/patient/:patientId",
   authenticate,
   authorize("nurse", "barangay_admin", "super_admin"),

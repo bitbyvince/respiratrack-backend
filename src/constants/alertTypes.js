@@ -5,7 +5,9 @@ const ALERT_TYPES = {
   ESCALATION_L3: "Escalation L3",
   LOW_STOCK: "Low Stock",
   SPUTUM_TEST_DUE: "Sputum Test Due",
+  SPUTUM_SAMPLE_SUBMITTED: "Sputum Sample Submitted",
   APPOINTMENT_REMINDER: "Appointment Reminder",
+  CONTACT_INFO_UPDATED: "Contact Info Updated",
   ALL: [
     "Missed Dose",
     "Escalation L1",
@@ -13,7 +15,9 @@ const ALERT_TYPES = {
     "Escalation L3",
     "Low Stock",
     "Sputum Test Due",
+    "Sputum Sample Submitted",
     "Appointment Reminder",
+    "Contact Info Updated",
   ],
 };
 

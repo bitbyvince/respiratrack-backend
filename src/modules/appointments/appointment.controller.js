@@ -27,6 +27,15 @@ export const getMyAppointments = async (req, res) => {
   }
 };
 
+export const getAvailableSlots = async (req, res) => {
+  try {
+    const result = await service.getAvailableSlots(req.user.patient_id, req.query.date);
+    return sendSuccess(res, 200, 'Available slots retrieved.', result);
+  } catch (err) {
+    return sendError(res, err.statusCode || 400, err.message);
+  }
+};
+
 export const getAppointments = async (req, res) => {
   try {
     const { page = 1, limit = 20, status, purpose, from, to } = req.query;

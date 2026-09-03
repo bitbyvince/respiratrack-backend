@@ -1,11 +1,13 @@
 import bcrypt from 'bcryptjs';
 import Patient from '../../models/Patient.model.js';
 import User from '../../models/User.model.js';
+import Alert from '../../models/Alert.model.js';
 import { createError } from '../../utils/apiResponse.js';
 import { generateCaseNumber } from '../../utils/caseNumberGenerator.js';
 import { computeRiskScore } from '../../utils/riskScoring.js';
 import { computeCompliance } from '../../utils/complianceCalculator.js';
 import { exportPatientListPdf } from '../../utils/pdfExporter.js';
+import { sendToDevice } from '../../utils/firebaseMessaging.js';
 import ROLES from '../../constants/roles.js';
 
 // ── PAGINATION ───────────────────────────────────────────
@@ -128,6 +130,68 @@ export const getPatientByUserId = async (userId) => {
   const patient = await Patient.findOne({ user_id: userId });
   if (!patient) throw createError(404, 'No patient record linked to this account.');
   return patient;
+};
+
+export const updateMyContact = async (userId, data) => {
+  const patient = await Patient.findOne({ user_id: userId });
+  if (!patient) throw createError(404, 'No patient record linked to this account.');
+
+  const changes = [];
+
+  if (data.phone_number !== undefined && data.phone_number !== '' && data.phone_number !== patient.phone_number) {
+    changes.push(`phone number to ${data.phone_number}`);
+    patient.phone_number = data.phone_number;
+  }
+  if (data.email !== undefined && data.email !== '' && data.email !== patient.email) {
+    changes.push(`email to ${data.email}`);
+    patient.email = data.email;
+  }
+
+  await patient.save();
+
+  if (changes.length > 0) {
+    await notifyNurseOfContactChange(patient, changes);
+  }
+
+  return patient;
+};
+
+const notifyNurseOfContactChange = async (patient, changes) => {
+  const message = `Patient ${patient.tb_case_number} updated their ${changes.join(' and ')}. Please re-verify before your next contact attempt.`;
+
+  await Alert.create({
+    alert_id: await Alert.generateNextId(),
+    patient_id: patient.patient_id,
+    tb_case_number: patient.tb_case_number,
+    barangay_id: patient.barangay_id,
+    alert_type: 'Contact Info Updated',
+    escalation_level: 0,
+    message,
+    severity: 'Info',
+    status: 'Active',
+    target_roles: ['nurse'],
+    created_at: new Date(),
+    resolved_at: null,
+    resolved_by: null,
+  });
+
+  if (!patient.assigned_nurse_id) return;
+  const nurse = await User.findOne({ user_id: patient.assigned_nurse_id });
+  if (!nurse?.fcm_token) return;
+
+  try {
+    await sendToDevice({
+      fcmToken: nurse.fcm_token,
+      title: 'Patient Contact Info Changed',
+      body: message,
+      data: {
+        type: 'contact_info_updated',
+        patient_id: patient.patient_id,
+      },
+    });
+  } catch {
+    // Best-effort push; the Alert record above is the source of truth.
+  }
 };
 
 // ================================================================

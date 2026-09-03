@@ -7,6 +7,7 @@ import ROLES from '../../constants/roles.js';
 import {
   registerPatientSchema,
   updatePatientSchema,
+  updateContactSchema,
   updateTreatmentOutcomeSchema,
   updateSputumScheduleSchema,
   listPatientsSchema,
@@ -23,6 +24,12 @@ router.get(
   patientController.listPatients,
 );
 router.get('/me', roleMiddleware(ROLES.PATIENT), patientController.getMyPatientProfile);
+router.patch(
+  '/me/contact',
+  roleMiddleware(ROLES.PATIENT),
+  validate(updateContactSchema),
+  patientController.updateMyContact,
+);
 router.get(
   '/export/pdf',  // ← Moved up from bottom (fix from Tablet branch)
   roleMiddleware(ROLES.SUPER_ADMIN, ROLES.BARANGAY_ADMIN),

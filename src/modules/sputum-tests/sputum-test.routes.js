@@ -21,6 +21,7 @@ router.get("/", authenticate, authorizeRoles(...ALL_STAFF), validate(listSputumT
 router.get("/upcoming", authenticate, authorizeRoles(...ALL_STAFF), validate(getUpcomingSchema, "query"), controller.getUpcomingTests);
 router.get("/overdue", authenticate, authorizeRoles(...ALL_STAFF), controller.getOverdueTests);
 router.get("/my", authenticate, authorizeRoles(ROLES.PATIENT), controller.getMySputumTests);
+router.patch("/my/:month/submitted", authenticate, authorizeRoles(ROLES.PATIENT), controller.reportSampleSubmitted);
 router.get("/patient/:patientId/summary", authenticate, authorizeRoles(...ALL_ROLES), controller.getPatientSputumSummary);
 router.get("/:testId", authenticate, authorizeRoles(...ALL_ROLES), controller.getSputumTest);
 router.patch("/:testId/result", authenticate, authorizeRoles(...ALL_STAFF), validate(enterResultSchema), controller.enterResult);

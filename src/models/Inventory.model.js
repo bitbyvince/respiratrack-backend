@@ -143,7 +143,7 @@ inventorySchema.index({ stock_status: 1 });
 inventorySchema.index({ estimated_stockout_date: 1 });
 
 // ── Pre-save: auto-compute stock_status ──────────────────────
-inventorySchema.pre('save', function (next) {
+inventorySchema.pre('save', function () {
   if (this.isModified('remaining_stock')) {
     const dailyRate = this.active_patients_on_this_drug || 1;
 
@@ -159,7 +159,6 @@ inventorySchema.pre('save', function (next) {
 
     this.last_updated_at = new Date();
   }
-  next();
 });
 
 // ── Method: dispense ─────────────────────────────────────────
