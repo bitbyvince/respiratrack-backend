@@ -60,7 +60,7 @@ export async function getPatientReport(req, res) {
     assertBarangayAccess(req.user, data.patient.barangay_id ?? null);
 
     if (format === "pdf") {
-      const buffer = await generatePatientPDF(data);
+      const buffer = await generatePatientPDF(data.patient);
       return streamPDF(res, buffer, `patient-report-${data.patient.tb_case_number}`);
     }
 
@@ -84,7 +84,7 @@ export async function getBarangayReport(req, res) {
     });
 
     if (req.query.format === "pdf") {
-      const buffer = await generateBarangayPDF(data);
+      const buffer = await generateBarangayPDF(data.barangay, data.patients);
       return streamPDF(res, buffer, `barangay-report-${data.barangay.barangay_id}`);
     }
 

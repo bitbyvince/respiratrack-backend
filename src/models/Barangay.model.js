@@ -297,7 +297,7 @@ BarangaySchema.index({ is_active: 1 });
 // ── Pre-save hook ──────────────────────────────────────────
 // Auto-derive heat_intensity and risk_level from
 // compliance_percentage whenever stats are updated
-BarangaySchema.pre("save", function (next) {
+BarangaySchema.pre("save", function () {
   if (this.isModified("stats.compliance_percentage")) {
     const pct = this.stats.compliance_percentage ?? 0;
 
@@ -315,7 +315,6 @@ BarangaySchema.pre("save", function (next) {
       this.stats.risk_level = "critical";
     }
   }
-  next();
 });
 
 // ── Virtuals ───────────────────────────────────────────────

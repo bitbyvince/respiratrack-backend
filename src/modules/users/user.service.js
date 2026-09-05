@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import { randomInt } from "crypto";
 import User from "../../models/User.model.js";
 import { createError } from "../../utils/apiResponse.js";
 import ROLES, { isSuperAdminLevel } from "../../constants/roles.js";
@@ -334,7 +335,7 @@ export const resetPatientPin = async (patientId, requester) => {
   if (requester.role !== ROLES.SUPER_ADMIN)
     assertSameBarangay(requester, user.barangay_id);
 
-  const newPin = Math.floor(1000 + Math.random() * 9000).toString();
+  const newPin = randomInt(1000, 10000).toString();
   const pinHash = await bcrypt.hash(newPin, 12);
 
   await User.findOneAndUpdate(

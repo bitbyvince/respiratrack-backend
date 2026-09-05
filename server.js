@@ -8,6 +8,7 @@ import { runHeatmapSnapshot } from "./src/jobs/heatmapSnapshot.job.js";
 import { runReminderDispatch } from "./src/jobs/reminderDispatch.job.js";
 import { runMedicationReminderJob } from "./src/jobs/medicationReminder.job.js";
 import { runAppointmentReminderJob } from "./src/jobs/appointmentReminder.job.js";
+import { runAppointmentAutoCancelJob } from "./src/jobs/appointmentAutoCancel.job.js";
 import { runMissedDoseJob } from "./src/jobs/missedDose.job.js";
 
 
@@ -27,14 +28,18 @@ app.listen(PORT, () => {
   // Reminder dispatch (sputum tests) — every 15 minutes
   cron.schedule("*/15 * * * *", runReminderDispatch);
 
-  // Medication reminder — hourly, matches each patient's chosen time
-  cron.schedule("0 * * * *", runMedicationReminderJob);
+  cron.schedule("0 * * * *", runMedicationReminderJob, { timezone: "Asia/Manila" });
 
   // Appointment reminder — every 15 minutes, ~24h before the visit
   cron.schedule("*/15 * * * *", runAppointmentReminderJob);
 
-  // Missed dose detection — once daily, end of day
-  cron.schedule("0 21 * * *", runMissedDoseJob);
+  // Appointment auto-cancel — runs once on startup, then every 15 minutes
+  runAppointmentAutoCancelJob();
+  cron.schedule("*/15 * * * *", runAppointmentAutoCancelJob, { timezone: "Asia/Manila" });
+
+  // Missed dose detection — runs once on startup, then daily, end of day
+  runMissedDoseJob();
+  cron.schedule("0 21 * * *", runMissedDoseJob, { timezone: "Asia/Manila" });
 
   console.log("✅ Cron jobs registered");
 });

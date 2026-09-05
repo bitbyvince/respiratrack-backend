@@ -56,7 +56,7 @@ router.get(
 router.patch(
   "/:logId",
   authenticate,
-  authorize("nurse"),
+  authorize("nurse", "patient"),
   validate(updateMedicationLogSchema),
   controller.updateLog
 );

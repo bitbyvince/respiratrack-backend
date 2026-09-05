@@ -23,10 +23,9 @@ const env = {
     "FIREBASE_SERVICE_ACCOUNT_PATH",
     "./serviceAccountKey.json",
   ),
-  FIREBASE_PROJECT_ID: required("FIREBASE_PROJECT_ID"),
 
   // ── JWT ─────────────────────────────────────────────────
-  JWT_SECRET: required("JWT_SECRET"),
+  JWT_ACCESS_SECRET: required("JWT_ACCESS_SECRET"),
   JWT_EXPIRES_IN: optional("JWT_EXPIRES_IN", "12h"),
   JWT_REFRESH_SECRET: required("JWT_REFRESH_SECRET"),
   JWT_REFRESH_EXPIRES_IN: optional("JWT_REFRESH_EXPIRES_IN", "7d"),

@@ -10,15 +10,15 @@ import { generateInventoryPDF } from "../../utils/pdfExporter.js";
 
 function deriveStockStatus(remainingStock, activePatientsOnDrug) {
   if (activePatientsOnDrug <= 0 || remainingStock <= 0) {
-    return remainingStock <= 0 ? "STOCKOUT" : "OK";
+    return remainingStock <= 0 ? "Stockout" : "OK";
   }
 
   const daysRemaining = remainingStock / activePatientsOnDrug;
 
   if (daysRemaining >= 30) return "OK";
-  if (daysRemaining >= 14) return "LOW";
-  if (daysRemaining >= 7) return "CRITICAL";
-  return "STOCKOUT";
+  if (daysRemaining >= 14) return "Low";
+  if (daysRemaining >= 7) return "Critical";
+  return "Stockout";
 }
 
 function estimateStockoutDate(inventoryDoc, avgDailyRate) {
@@ -35,9 +35,9 @@ function estimateStockoutDate(inventoryDoc, avgDailyRate) {
 
 async function syncStockAlert(inventoryDoc, resolvedByUserId = null) {
   const isProblematic =
-    inventoryDoc.stock_status === "LOW" ||
-    inventoryDoc.stock_status === "CRITICAL" ||
-    inventoryDoc.stock_status === "STOCKOUT";
+    inventoryDoc.stock_status === "Low" ||
+    inventoryDoc.stock_status === "Critical" ||
+    inventoryDoc.stock_status === "Stockout";
 
   if (!isProblematic) {
     await Alert.updateMany(
@@ -59,8 +59,8 @@ async function syncStockAlert(inventoryDoc, resolvedByUserId = null) {
   }
 
   const severity =
-    inventoryDoc.stock_status === "STOCKOUT" ||
-    inventoryDoc.stock_status === "CRITICAL"
+    inventoryDoc.stock_status === "Stockout" ||
+    inventoryDoc.stock_status === "Critical"
       ? "Critical"
       : "Warning";
 
@@ -168,7 +168,7 @@ export async function getLowStockItems(barangayId, includeOk = false) {
   if (barangayId) filter.barangay_id = barangayId;
   if (!includeOk) {
     filter.stock_status = {
-      $in: ["LOW", "CRITICAL", "STOCKOUT"],
+      $in: ["Low", "Critical", "Stockout"],
     };
   }
 

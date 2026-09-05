@@ -55,7 +55,7 @@ export async function buildSnapshotForBarangay(barangay, period, date) {
     barangay_id: barangayId,
     is_active: true,
   }).select(
-    "compliance.risk_level compliance.compliance_percentage escalation.level"
+    "compliance.risk_level compliance.compliance_percentage escalation.level date_started"
   );
 
   const totalPatients = patients.length;
@@ -64,8 +64,10 @@ export async function buildSnapshotForBarangay(barangay, period, date) {
   let defaulterCount = 0;
   let totalCompliance = 0;
 
-  // AFTER
-let eligibleCount = 0;
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  let eligibleCount = 0;
 
 for (const p of patients) {
   const rl = p.compliance?.risk_level;

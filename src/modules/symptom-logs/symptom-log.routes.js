@@ -22,8 +22,10 @@ router.get(
   "/patient/:patientId",
   authenticate,
   authorizeRoles("nurse", "barangay_admin", "super_admin", "patc"),
-)
-router .get(
+  controller.getPatientLogs,
+);
+
+router.get(
   "/history",
   authenticate,
   authorizeRoles("patient"),

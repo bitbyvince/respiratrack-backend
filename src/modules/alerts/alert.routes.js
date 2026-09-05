@@ -65,4 +65,11 @@ router.patch(
   controller.acknowledgeAlert,
 );
 
+router.post(
+  '/:alertId/follow-up',
+  authenticate,
+  authorizeRoles('nurse', 'barangay_admin', 'super_admin', 'patc'),
+  controller.sendFollowUp,
+);
+
 export default router;

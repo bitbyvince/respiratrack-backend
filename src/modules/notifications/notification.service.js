@@ -204,3 +204,14 @@ export async function markAllAsRead(userId) {
 
   return { updated: result.modifiedCount };
 }
+
+export async function deleteNotification(notificationMongoId, userId) {
+  const notification = await Notification.findById(notificationMongoId);
+  if (!notification) throw new Error("Notification not found");
+  if (notification.user_id !== userId) {
+    const err = new Error("Access denied");
+    err.statusCode = 403;
+    throw err;
+  }
+  await Notification.findByIdAndDelete(notificationMongoId);
+}

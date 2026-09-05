@@ -4,6 +4,9 @@ import User from "../../models/User.model.js";
 import Barangay from "../../models/Barangay.model.js";
 import { createError } from "../../utils/apiResponse.js";
 import firebaseAdmin from "../../config/firebase.js";
+import { sendOtpSms } from "../../utils/semaphoreSms.js";
+
+const OTP_TTL_MS = 5 * 60 * 1000;
 
 const signAccessToken = (payload) =>
   jwt.sign(payload, process.env.JWT_ACCESS_SECRET, {
@@ -44,6 +47,12 @@ async function issueTokens(user) {
     return {
     accessToken,
     refreshToken,
+    firebaseToken,
+    userId: user.user_id,
+    patientId: user.patient_id || null,
+    tbCaseNumber: user.tb_case_number || null,
+    phone_number: user.phone_number || null,
+    phone_verified: user.phone_verified ?? false,
     role: user.role,
     barangay_id: user.barangay_id || null,
     barangay_name: user.barangay_name || null,
@@ -84,12 +93,15 @@ export async function patientLogin(identifier, pin) {
   return issueTokens(user);
 }
 
-export async function setPatientPin(patientId, pin) {
-  const user = await User.findOne({ patient_id: patientId, role: "patient" });
+export async function setPatientPin(requestingUser, pin) {
+  if (requestingUser.role !== "patient" || !requestingUser.patient_id) {
+    throw createError(403, "Only patients can set their own PIN.");
+  }
+  const user = await User.findOne({ patient_id: requestingUser.patient_id, role: "patient" });
   if (!user) throw createError(404, "Patient not found.");
   const hashed = await bcrypt.hash(pin, 12);
   await User.findOneAndUpdate(
-    { patient_id: patientId },
+    { patient_id: requestingUser.patient_id },
     { pin_hash: hashed, updated_at: new Date() }
   );
 }
@@ -145,25 +157,44 @@ export async function changePin(userId, currentPin, newPin) {
 }
 
 export async function requestOtp(phoneNumber) {
-  const user = await User.findOne({ phone_number: phoneNumber, is_active: true });
+  const user = await User.findOne({
+    phone_number: phoneNumber,
+    role: "patient",
+    is_active: true,
+  });
   if (!user) throw createError(404, "No active account found with this phone number.");
-  return { message: "Phone number verified. Proceed with Firebase OTP." };
+
+  const code = await sendOtpSms(phoneNumber);
+  const hashed = await bcrypt.hash(code, 10);
+
+  await User.findOneAndUpdate(
+    { phone_number: phoneNumber },
+    { otp_hash: hashed, otp_expires_at: new Date(Date.now() + OTP_TTL_MS) }
+  );
+
+  return { message: "OTP sent." };
 }
 
-export async function verifyOtp(phoneNumber, firebaseIdToken) {
-  let decoded;
-  try {
-    decoded = await firebaseAdmin.auth().verifyIdToken(firebaseIdToken);
-  } catch {
-    throw createError(400, "OTP verification failed. Token is invalid.");
-  }
-
-  if (decoded.phone_number !== phoneNumber) {
-    throw createError(400, "Phone number does not match the verified token.");
-  }
-
-  const user = await User.findOne({ phone_number: phoneNumber, is_active: true });
+export async function verifyOtp(phoneNumber, code) {
+  const user = await User.findOne({
+    phone_number: phoneNumber,
+    role: "patient",
+    is_active: true,
+  });
   if (!user) throw createError(404, "User not found.");
+
+  if (!user.otp_hash || !user.otp_expires_at || user.otp_expires_at < new Date()) {
+    throw createError(400, "Code expired or not requested — request a new one.");
+  }
+
+  const isMatch = await bcrypt.compare(code, user.otp_hash);
+  if (!isMatch) throw createError(400, "Invalid code.");
+
+  await User.findOneAndUpdate(
+    { phone_number: phoneNumber },
+    { phone_verified: true, otp_hash: null, otp_expires_at: null }
+  );
+  user.phone_verified = true;
 
   return issueTokens(user);
 }

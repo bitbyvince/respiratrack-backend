@@ -243,6 +243,8 @@ const patientSchema = new mongoose.Schema(
       default: [],
     },
 
+    last_reminder_sent: { type: Date, default: null },
+
     // ── Compliance ───────────────────────────────────────────
     compliance: {
       total_doses_required:     { type: Number, required: true, min: 0 },

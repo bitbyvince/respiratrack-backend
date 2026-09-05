@@ -19,7 +19,7 @@ const ADMIN_ONLY = [ROLES.SUPER_ADMIN, ROLES.PATC];
 router.post(
   '/trigger',
   authenticate,
-  authorizeRoles(ADMIN_ONLY),
+  authorizeRoles(...ADMIN_ONLY),
   validate(triggerEscalationSchema),
   controller.triggerEscalation,
 );
@@ -27,17 +27,17 @@ router.post(
 router.get(
   '/',
   authenticate,
-  authorizeRoles(ALL_STAFF),
+  authorizeRoles(...ALL_STAFF),
   validate(listEscalationsSchema, 'query'),
   controller.listEscalations,
 );
 
-router.get('/:escalationId', authenticate, authorizeRoles(ALL_STAFF), controller.getEscalation);
+router.get('/:escalationId', authenticate, authorizeRoles(...ALL_STAFF), controller.getEscalation);
 
 router.patch(
   '/:escalationId/acknowledge',
   authenticate,
-  authorizeRoles(ALL_STAFF),
+  authorizeRoles(...ALL_STAFF),
   validate(acknowledgeEscalationSchema),
   controller.acknowledgeEscalation,
 );
@@ -45,7 +45,7 @@ router.patch(
 router.patch(
   '/:escalationId/resolve',
   authenticate,
-  authorizeRoles(ALL_STAFF),
+  authorizeRoles(...ALL_STAFF),
   validate(resolveEscalationSchema),
   controller.resolveEscalation,
 );

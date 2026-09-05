@@ -122,10 +122,11 @@ export async function logNurseNotification(req, res) {
 
 export async function deleteNotification(req, res) {
   try {
-    await Notification.findByIdAndDelete(req.params.id);
+    await notificationService.deleteNotification(req.params.id, req.user.user_id);
     return sendSuccess(res, 200, "Notification deleted");
   } catch (err) {
-    return sendError(res, 500, err.message);
+    const status = err.statusCode || (err.message === "Notification not found" ? 404 : 500);
+    return sendError(res, status, err.message);
   }
 }
 

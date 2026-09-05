@@ -1,12 +1,13 @@
 import Joi from 'joi';
 
-const VALID_PURPOSES = ['Follow-up', 'Sputum Test', 'Emergency', 'Routine'];
+const VALID_PURPOSES = ['Follow-up', 'Sputum Test', 'Medication Refill', 'Consultation', 'Routine'];
 
 export const createAppointmentSchema = Joi.object({
   patient_id: Joi.string().required(),
-  scheduled_date: Joi.date().greater('now').required().messages({
-    'date.greater': 'Scheduled date must be in the future.',
-  }),
+  // Date-only granularity can't express "later today", so the real
+  // in-the-future check (which also accounts for scheduled_time) happens
+  // in appointment.service.js instead of here.
+  scheduled_date: Joi.date().required(),
   scheduled_time: Joi.string()
     .pattern(/^([01]\d|2[0-3]):([0-5]\d)$/)
     .required()
@@ -23,9 +24,7 @@ export const createAppointmentSchema = Joi.object({
 });
 
 export const updateAppointmentSchema = Joi.object({
-  scheduled_date: Joi.date().greater('now').optional().messages({
-    'date.greater': 'Scheduled date must be in the future.',
-  }),
+  scheduled_date: Joi.date().optional(),
   scheduled_time: Joi.string()
     .pattern(/^([01]\d|2[0-3]):([0-5]\d)$/)
     .optional()

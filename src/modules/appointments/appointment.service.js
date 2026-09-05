@@ -3,8 +3,60 @@ import Patient from '../../models/Patient.model.js';
 import User from '../../models/User.model.js';
 import { notifyPatient } from '../../utils/notifyPatient.js';
 
-const VALID_PURPOSES = ['Follow-up', 'Sputum Test', 'Emergency', 'Routine'];
+const VALID_PURPOSES = ['Follow-up', 'Sputum Test', 'Medication Refill', 'Consultation', 'Routine'];
 const VALID_STATUSES = ['Pending', 'Confirmed', 'Completed', 'Cancelled'];
+
+// appointment.patient_id is a plain string (not the Patient's _id), so
+// Mongoose .populate() can't resolve it — batch-fetch the matching
+// patients instead and merge their display fields onto each appointment.
+const attachPatientInfo = async (appointments) => {
+  const patientIds = [...new Set(appointments.map((a) => a.patient_id))];
+  const patients = await Patient.find({ patient_id: { $in: patientIds } })
+    .select('patient_id first_name last_name middle_name phone_number barangay_name')
+    .lean();
+  const byId = new Map(patients.map((p) => [p.patient_id, p]));
+
+  return appointments.map((a) => {
+    const appointment = a.toJSON ? a.toJSON() : a;
+    const patient = byId.get(appointment.patient_id);
+    return {
+      ...appointment,
+      patient_name: patient
+        ? [patient.first_name, patient.middle_name, patient.last_name].filter(Boolean).join(' ')
+        : null,
+      patient_phone: patient?.phone_number ?? null,
+      patient_barangay_name: patient?.barangay_name ?? null,
+    };
+  });
+};
+
+// scheduled_date alone is stored/compared at midnight granularity, so
+// checking it against `new Date()` directly rejects every same-day booking
+// once any time has passed since midnight. Combine it with scheduled_time
+// to find out whether the actual slot is still upcoming.
+const assertScheduledSlotIsFuture = (scheduledDateObj, scheduledTime) => {
+  const now = new Date();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (scheduledDateObj < today) {
+    throw new Error('Scheduled date must be today or later.');
+  }
+
+  const isToday =
+    scheduledDateObj.getFullYear() === now.getFullYear() &&
+    scheduledDateObj.getMonth() === now.getMonth() &&
+    scheduledDateObj.getDate() === now.getDate();
+
+  if (isToday) {
+    const [hours, minutes] = scheduledTime.split(':').map(Number);
+    const slotDateTime = new Date();
+    slotDateTime.setHours(hours, minutes, 0, 0);
+    if (slotDateTime < now) {
+      throw new Error('That time has already passed. Please pick a later time.');
+    }
+  }
+};
 
 const generateAppointmentId = async () => {
   const latest = await Appointment.findOne().sort({ appointment_id: -1 }).select('appointment_id');
@@ -37,9 +89,8 @@ export const createAppointment = async (data, user) => {
   }
 
   const scheduledDateObj = new Date(scheduled_date);
-  if (scheduledDateObj < new Date()) {
-    throw new Error('Scheduled date must be in the future.');
-  }
+  if (Number.isNaN(scheduledDateObj.getTime())) throw new Error('Invalid scheduled date.');
+  assertScheduledSlotIsFuture(scheduledDateObj, scheduled_time);
 
   const existing = await Appointment.findOne({
     patient_id,
@@ -107,7 +158,7 @@ export const getAvailableSlots = async (patientId, dateStr) => {
 };
 
 export const getAppointments = async (filters, { page, limit }) => {
-  const { status, purpose, from, to } = filters;
+  const { status, purpose, from, to, barangay_id } = filters;
   const query = {};
 
   if (status) {
@@ -115,6 +166,7 @@ export const getAppointments = async (filters, { page, limit }) => {
     query.status = statuses.length === 1 ? statuses[0] : { $in: statuses };
   }
   if (purpose) query.purpose = purpose;
+  if (barangay_id) query.barangay_id = barangay_id;
   if (from || to) {
     query.scheduled_date = {};
     if (from) query.scheduled_date.$gte = new Date(from);
@@ -122,10 +174,11 @@ export const getAppointments = async (filters, { page, limit }) => {
   }
 
   const skip = (parseInt(page) - 1) * parseInt(limit);
-  const [appointments, total] = await Promise.all([
+  const [rawAppointments, total] = await Promise.all([
     Appointment.find(query).sort({ scheduled_date: 1 }).skip(skip).limit(parseInt(limit)),
     Appointment.countDocuments(query),
   ]);
+  const appointments = await attachPatientInfo(rawAppointments);
 
   return { appointments, total, page: parseInt(page), limit: parseInt(limit) };
 };
@@ -146,10 +199,10 @@ export const getPatientAppointments = async (patientId, { status, purpose, upcom
 
   if (purpose) query.purpose = purpose;
 
-  if (upcoming === 'true') {
-    query.scheduled_date = { $gte: new Date() };
-  } else if (upcoming === 'false') {
-    query.scheduled_date = { $lt: new Date() };
+  if (upcoming === 'true' || upcoming === 'false') {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    query.scheduled_date = upcoming === 'true' ? { $gte: startOfToday } : { $lt: startOfToday };
   }
 
   return await Appointment.find(query).sort({ scheduled_date: -1 });
@@ -168,7 +221,8 @@ export const getBarangayAppointments = async (barangayId, { status, purpose, dat
     const end = new Date(start.getTime() + 86400000);
     query.scheduled_date = { $gte: start, $lt: end };
   }
-  return await Appointment.find(query).sort({ scheduled_date: 1 });
+  const appointments = await Appointment.find(query).sort({ scheduled_date: 1 });
+  return await attachPatientInfo(appointments);
 };
 
 export const confirmAppointment = async (appointmentId, user) => {
@@ -227,13 +281,17 @@ export const updateAppointment = async (appointmentId, data, user) => {
 
   const { scheduled_date, scheduled_time, purpose, notes } = data;
 
-  if (scheduled_date) {
-    const scheduledDateObj = new Date(scheduled_date);
-    if (scheduledDateObj < new Date()) throw new Error('Scheduled date must be in the future.');
-    appointment.scheduled_date = scheduledDateObj;
-  }
+  if (scheduled_date || scheduled_time) {
+    const scheduledDateObj = scheduled_date ? new Date(scheduled_date) : appointment.scheduled_date;
+    if (scheduled_date && Number.isNaN(scheduledDateObj.getTime())) {
+      throw new Error('Invalid scheduled date.');
+    }
+    const scheduledTime = scheduled_time || appointment.scheduled_time;
+    assertScheduledSlotIsFuture(scheduledDateObj, scheduledTime);
 
-  if (scheduled_time) appointment.scheduled_time = scheduled_time;
+    if (scheduled_date) appointment.scheduled_date = scheduledDateObj;
+    if (scheduled_time) appointment.scheduled_time = scheduledTime;
+  }
   if (purpose) {
     if (!VALID_PURPOSES.includes(purpose)) {
       throw new Error(`Invalid purpose. Must be one of: ${VALID_PURPOSES.join(', ')}`);

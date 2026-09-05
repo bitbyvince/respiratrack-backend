@@ -38,6 +38,9 @@ export async function getPatientLogs(req, res) {
 export async function getTodayLog(req, res) {
   try {
     const { patientId } = req.params;
+    if (req.user.role === "patient" && patientId !== req.user.patient_id) {
+      return error(res, "Access denied", 403);
+    }
     const log = await service.getTodayLog(patientId);
     return success(res, "Today log retrieved.", { log });
   } catch (err) {

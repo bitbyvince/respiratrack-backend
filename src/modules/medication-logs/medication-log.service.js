@@ -1,6 +1,7 @@
 import MedicationLog from "../../models/MedicationLog.model.js";
 import Patient from "../../models/Patient.model.js";
-import { computeStreaks } from "../../utils/streakCalculator.js";
+import { computePatientCompliance } from "../../utils/complianceEngine.js";
+import { syncMissedDoseAlert } from "../alerts/alert.service.js";
 
 const generateLogId = async () => {
   const count = await MedicationLog.countDocuments();
@@ -53,63 +54,20 @@ export async function logMedication(data, user) {
     notes: notes || "",
   });
 
-  await updatePatientCompliance(patient, overall_status, dateObj);
+  await updatePatientCompliance(patient);
 
   return log;
 }
 
-async function updatePatientCompliance(patient, overall_status, logDate) {
-  const totalLogs = await MedicationLog.countDocuments({ patient_id: patient.patient_id });
-  const takenLogs = await MedicationLog.countDocuments({
-    patient_id: patient.patient_id,
-    overall_status: { $in: ["Taken", "Partial"] },
-  });
-
-  const compliance_percentage =
-    patient.compliance.total_doses_required > 0
-      ? (takenLogs / patient.compliance.total_doses_required) * 100
-      : 0;
-
-  const missedLogs = await MedicationLog.find({
-    patient_id: patient.patient_id,
-    overall_status: "Missed",
-  }).sort({ log_date: -1 });
-
-  let consecutive_missed_doses = 0;
-  for (const log of missedLogs) {
-    if (log.overall_status === "Missed") consecutive_missed_doses++;
-    else break;
-  }
-  const { consecutiveDaysTaken, consecutiveMissedDoses } = await computeStreaks(
-    patient.patient_id,
-    patient.date_started,
-  );
-  
-
-  const risk_level =
-    consecutive_missed_doses >= 14
-      ? "Defaulter"
-      : consecutive_missed_doses >= 2
-      ? "At Risk"
-      : "Compliant";
+async function updatePatientCompliance(patient) {
+  const { compliance, risk_score } = await computePatientCompliance(patient);
 
   await Patient.updateOne(
     { patient_id: patient.patient_id },
-    {
-      $set: {
-        "compliance.doses_taken": takenLogs,
-        "compliance.doses_missed": totalLogs - takenLogs,
-        "compliance.doses_remaining": patient.compliance.total_doses_required - takenLogs,
-        "compliance.compliance_percentage": parseFloat(compliance_percentage.toFixed(2)),
-        "compliance.consecutive_missed_doses": consecutive_missed_doses,
-        "compliance.consecutive_days_taken": consecutiveDaysTaken,
-        "compliance.risk_level": risk_level,
-        "compliance.last_dose_taken":
-          overall_status !== "Missed" ? logDate : patient.compliance.last_dose_taken,
-        updated_at: new Date(),
-      },
-    }
+    { $set: { compliance, risk_score, updated_at: new Date() } },
   );
+
+  await syncMissedDoseAlert(patient, compliance.consecutive_missed_doses);
 }
 
 export async function getPatientLogs(patientId, { page, limit, status, from, to }) {
@@ -166,6 +124,17 @@ export async function updateLog(logId, data, user) {
   const log = await MedicationLog.findOne({ log_id: logId });
   if (!log) throw new Error("Log not found.");
 
+  if (user.role === "patient") {
+    if (log.patient_id !== user.patient_id) {
+      throw new Error("You can only update your own medication logs.");
+    }
+    const logDateOnly = log.log_date.toISOString().split("T")[0];
+    const todayOnly = new Date().toISOString().split("T")[0];
+    if (logDateOnly < todayOnly) {
+      throw new Error("That day has already ended and can no longer be edited.");
+    }
+  }
+
   const { medicines, notes } = data;
   if (medicines) {
     const allTaken = medicines.every((m) => m.status === "Taken");
@@ -178,7 +147,7 @@ export async function updateLog(logId, data, user) {
   await log.save();
 
   const patient = await Patient.findOne({ patient_id: log.patient_id });
-  if (patient) await updatePatientCompliance(patient, log.overall_status, log.log_date);
+  if (patient) await updatePatientCompliance(patient);
 
   return log;
 }

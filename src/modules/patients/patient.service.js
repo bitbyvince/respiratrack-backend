@@ -1,11 +1,11 @@
 import bcrypt from 'bcryptjs';
+import { randomInt } from 'crypto';
 import Patient from '../../models/Patient.model.js';
 import User from '../../models/User.model.js';
 import Alert from '../../models/Alert.model.js';
 import { createError } from '../../utils/apiResponse.js';
 import { generateCaseNumber } from '../../utils/caseNumberGenerator.js';
-import { computeRiskScore } from '../../utils/riskScoring.js';
-import { computeCompliance } from '../../utils/complianceCalculator.js';
+import { computePatientCompliance } from '../../utils/complianceEngine.js';
 import { generatePatientListPdf } from '../../utils/pdfExporter.js';
 import ROLES, { isSuperAdminLevel } from '../../constants/roles.js';
 import { createAlert } from '../alerts/alert.service.js';
@@ -66,14 +66,6 @@ const buildSputumSchedule = (dateStarted) => {
     due.setMonth(due.getMonth() + month);
     return { month, due_date: due, status: 'Pending' };
   });
-};
-
-// ── TREATMENT DAY COUNTER ────────────────────────────────
-const computeTreatmentDay = (dateStarted) => {
-  const today = new Date();
-  const start = new Date(dateStarted);
-  const diff = Math.floor((today - start) / (1000 * 60 * 60 * 24));
-  return Math.max(diff + 1, 1);
 };
 
 // ================================================================
@@ -213,35 +205,14 @@ export const registerPatient = async (data, requester) => {
   const endDate = computeEndDate(data.date_started, 6);
   const sputumSchedule = buildSputumSchedule(data.date_started);
 
-  const defaultPin = Math.floor(1000 + Math.random() * 9000).toString();
+  const defaultPin = randomInt(1000, 10000).toString();
   const pinHash = await bcrypt.hash(defaultPin, 12);
   const mobileUserId = await generateUserId();
 
   // Tablet improvement: filter(Boolean) prevents double spaces from missing middle name
   const nameParts = [data.first_name, data.middle_name, data.last_name].filter(Boolean);
 
-  const initialCompliance = {
-    total_doses_required: 168,
-    doses_taken: 0,
-    doses_missed: 0,
-    doses_remaining: 168,
-    compliance_percentage: 0,
-    adherence: 'Pending',
-    consecutive_missed_doses: 0,
-    last_dose_taken: null,
-    risk_level: 'Compliant',
-  };
-
-  const initialRiskScore = {
-    score: 0,
-    factors: {
-      consecutive_missed: 0,
-      symptom_frequency: 0,
-      days_into_treatment: 1,
-      phase_weight: data.treatment_phase === 'Intensive' ? 1.2 : 1.0,
-    },
-    last_computed: new Date(),
-  };
+  const initialCompliance = { total_doses_required: 168 };
 
   const patient = new Patient({
     patient_id: patientId,
@@ -297,7 +268,6 @@ export const registerPatient = async (data, requester) => {
     additional_notes: data.additional_notes || '',
     sputum_test_schedule: sputumSchedule,
     compliance: initialCompliance,
-    risk_score: initialRiskScore,
     escalation: {
       level: 0,
       escalated_at: null,
@@ -312,6 +282,9 @@ export const registerPatient = async (data, requester) => {
   });
 
   await patient.save();
+
+  const { compliance, risk_score } = await computePatientCompliance(patient);
+  await Patient.updateOne({ patient_id: patient.patient_id }, { $set: { compliance, risk_score } });
 
     // Notify barangay_admin/patc/super_admin that this health center needs restocking
     try {
@@ -544,23 +517,14 @@ export const linkUserAccount = async (patientId, userId) => {
   );
 };
 
-// ================================================================
-// RECOMPUTE COMPLIANCE & RISK SCORE
-// ================================================================
 export const recomputePatientCompliance = async (patientId) => {
   const patient = await Patient.findOne({ patient_id: patientId });
   if (!patient) throw createError(404, 'Patient not found.');
 
-  const updatedCompliance = await computeCompliance(patient);
-  const updatedRiskScore = computeRiskScore({
-    consecutive_missed: updatedCompliance.consecutive_missed_doses,
-    symptom_frequency: patient.risk_score.factors.symptom_frequency,
-    days_into_treatment: computeTreatmentDay(patient.date_started),
-    treatment_phase: patient.treatment_phase,
-  });
+  const { compliance, risk_score } = await computePatientCompliance(patient);
 
   await Patient.findOneAndUpdate(
     { patient_id: patientId },
-    { compliance: updatedCompliance, risk_score: updatedRiskScore, updated_at: new Date() },
+    { compliance, risk_score, updated_at: new Date() },
   );
 };

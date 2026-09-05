@@ -57,7 +57,8 @@ const AppointmentSchema = new Schema(
       enum: [
         "Follow-up", // routine treatment check-in
         "Sputum Test", // scheduled Month 2/5/6 sputum test
-        "Emergency", // urgent patient-initiated request
+        "Medication Refill", // DOTS medication pickup/refill visit
+        "Consultation", // non-urgent new or worsening symptoms
         "Routine", // general health center visit
       ],
     },
@@ -281,6 +282,27 @@ AppointmentSchema.statics.getUpcomingByPatient = function (patientId) {
     status: { $in: ["Pending", "Confirmed"] },
     scheduled_date: { $gte: new Date() },
   }).sort({ scheduled_date: 1 });
+};
+
+// Fetch all still-active (Pending/Confirmed) appointments whose
+// scheduled date + time has already passed — used by the auto-cancel job
+AppointmentSchema.statics.getExpiredActive = function () {
+  const now = new Date();
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+  const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+
+  return this.find({
+    status: { $in: ["Pending", "Confirmed"] },
+    $or: [
+      { scheduled_date: { $lt: todayStart } },
+      {
+        scheduled_date: { $gte: todayStart, $lt: todayEnd },
+        scheduled_time: { $lte: currentTime },
+      },
+    ],
+  });
 };
 
 // Fetch all appointments for a barangay on a specific date

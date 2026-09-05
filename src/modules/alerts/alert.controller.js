@@ -77,6 +77,17 @@ export const acknowledgeAlert = async (req, res) => {
   }
 };
 
+export const sendFollowUp = async (req, res) => {
+  try {
+    const { alertId } = req.params;
+    const { message } = req.body;
+    const result = await service.sendFollowUp(alertId, message);
+    return success(res, 'Follow-up notification sent.', result);
+  } catch (err) {
+    return error(res, err.message, 400);
+  }
+};
+
 export const checkEscalations = async (req, res) => {
   try {
     const barangayId = req.user.barangay_id;

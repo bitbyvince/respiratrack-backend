@@ -51,7 +51,7 @@ router.get(
 router.get(
   "/export/pdf",
   authenticate,
-  authorizeRoles(ALL_STAFF),
+  authorizeRoles(...ALL_STAFF),
   controller.exportInventoryPdf
 );
 

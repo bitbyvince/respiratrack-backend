@@ -23,13 +23,6 @@ router.get(
 );
 
 router.get(
-  '/:appointmentId',
-  authenticate,
-  authorize('nurse', 'barangay_admin', 'super_admin', 'patient', 'patc'),
-  controller.getAppointment,
-);
-
-router.get(
   '/my',
   authenticate,
   authorize('patient'),
@@ -44,10 +37,10 @@ router.get(
 );
 
 router.get(
-  '/',
+  '/:appointmentId',
   authenticate,
-  authorize('nurse', 'barangay_admin', 'super_admin', 'patc'),
-  controller.getAppointments,
+  authorize('nurse', 'barangay_admin', 'super_admin', 'patient', 'patc'),
+  controller.getAppointment,
 );
 
 router.get(

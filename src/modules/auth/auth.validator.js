@@ -27,9 +27,6 @@ export const patientLoginSchema = Joi.object({
 });
 
 export const setPatientPinSchema = Joi.object({
-  patient_id: Joi.string().required().messages({
-    "any.required": "Patient ID is required.",
-  }),
   pin: Joi.string()
     .length(4)
     .pattern(/^\d{4}$/)
@@ -113,7 +110,13 @@ export const verifyOtpSchema = Joi.object({
       "string.pattern.base": "Phone number must be in the format +639XXXXXXXXX.",
       "any.required": "Phone number is required.",
     }),
-  otp_code: Joi.string().required().messages({
-    "any.required": "Firebase ID token is required.",
-  }),
+  otp_code: Joi.string()
+    .length(6)
+    .pattern(/^\d{6}$/)
+    .required()
+    .messages({
+      "string.length": "OTP code must be exactly 6 digits.",
+      "string.pattern.base": "OTP code must contain only numbers.",
+      "any.required": "OTP code is required.",
+    }),
 });

@@ -20,6 +20,11 @@ const userSchema = new mongoose.Schema(
     phone_number: { type: String, default: null },
     pin_hash: { type: String, default: null },
 
+    // First-login SMS OTP verification (patients only)
+    phone_verified: { type: Boolean, default: false },
+    otp_hash: { type: String, default: null },
+    otp_expires_at: { type: Date, default: null },
+
     // Device token — used by both patients and nurses for FCM push notifications
     fcm_token: { type: String, default: null },
 
@@ -30,6 +35,9 @@ const userSchema = new mongoose.Schema(
     barangay_id: { type: String, default: null },
     barangay_name: { type: String, default: null },
     health_center_id: { type: String, default: null },
+
+    // Session management (server-side refresh-token revocation)
+    refresh_token_hash: { type: String, default: null },
 
     is_active: { type: Boolean, default: true },
     last_login: { type: Date, default: null },

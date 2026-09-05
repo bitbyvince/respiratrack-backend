@@ -2,8 +2,8 @@ import cron from "node-cron";
 import Patient from "../models/Patient.model.js";
 import MedicationLog from "../models/MedicationLog.model.js";
 import User from "../models/User.model.js";
-import { computeComplianceSummary } from "../utils/complianceCalculator.js";
-import { computeStreaks } from "../utils/streakCalculator.js";
+import { syncMissedDoseAlert } from "../modules/alerts/alert.service.js";
+import { computePatientCompliance } from "../utils/complianceEngine.js";
 import { notifyPatient } from "../utils/notifyPatient.js";
 import logger from "../utils/logger.js";
 
@@ -33,6 +33,12 @@ export const runMissedDoseJob = async () => {
     });
 
     for (const patient of patients) {
+      // Check the currently stored streak before anything else — if the
+      // cursor below is already caught up to today (e.g. this job already
+      // ran once today), the early `continue` right after it would
+      // otherwise skip this patient without ever re-checking the alert.
+      await syncMissedDoseAlert(patient, patient.compliance?.consecutive_missed_doses ?? 0);
+
       const cursorStart = patient.compliance?.last_missed_check
         ? addDays(dateOnly(patient.compliance.last_missed_check), 1)
         : dateOnly(patient.date_started);
@@ -61,27 +67,15 @@ export const runMissedDoseJob = async () => {
         continue;
       }
 
-      const dosesTaken = patient.compliance?.doses_taken ?? 0;
-      const totalRequired = patient.compliance?.total_doses_required ?? 0;
-      const dosesMissed = (patient.compliance?.doses_missed ?? 0) + missedDays.length;
-
-      const { consecutiveDaysTaken, consecutiveMissedDoses } =
-        await computeStreaks(patient.patient_id, patient.date_started);
-
-      const summary = computeComplianceSummary({
-        totalDosesRequired: totalRequired,
-        dosesTaken,
-        dosesMissed,
-        consecutiveMissedDoses,
-        lastDoseTaken: patient.compliance?.last_dose_taken ?? null,
-      });
-      summary.consecutive_days_taken = consecutiveDaysTaken;
-      summary.last_missed_check = todayStart;
+      const { compliance, risk_score } = await computePatientCompliance(patient);
+      const consecutiveMissedDoses = compliance.consecutive_missed_doses;
 
       await Patient.updateOne(
         { patient_id: patient.patient_id },
-        { $set: { compliance: summary, updated_at: now } },
+        { $set: { compliance, risk_score, updated_at: now } },
       );
+
+      await syncMissedDoseAlert(patient, consecutiveMissedDoses);
 
       if (patient.user_id) {
         const user = await User.findOne({ user_id: patient.user_id });

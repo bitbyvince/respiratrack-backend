@@ -23,8 +23,8 @@ export async function patientLogin(req, res) {
 
 export async function setPatientPin(req, res) {
   try {
-    const { patient_id, pin } = req.body;
-    await authService.setPatientPin(patient_id, pin);
+    const { pin } = req.body;
+    await authService.setPatientPin(req.user, pin);
     return sendSuccess(res, 200, "PIN set successfully.");
   } catch (err) {
     return sendError(res, err.statusCode || 400, err.message);

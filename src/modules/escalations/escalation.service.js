@@ -135,7 +135,8 @@ export async function triggerEscalation(patientId, consecutiveMissed) {
   const fcmTargets = users.filter((u) => u.fcm_token);
   await Promise.allSettled(
     fcmTargets.map((u) =>
-      sendPushNotification(u.fcm_token, {
+      sendPushNotification({
+        fcmToken: u.fcm_token,
         title: `Escalation Level ${level}: ${patient.full_name}`,
         body: alertMessage,
         data: {

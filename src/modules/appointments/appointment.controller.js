@@ -38,14 +38,14 @@ export const getAvailableSlots = async (req, res) => {
 
 export const getAppointments = async (req, res) => {
   try {
-    const { page = 1, limit = 20, status, purpose, from, to } = req.query;
+    const { page = 1, limit = 20, status, purpose, from, to, barangay_id } = req.query;
     const result = await service.getAppointments(
-      { status, purpose, from, to },
+      { status, purpose, from, to, barangay_id },
       { page, limit },
     );
-    return res.status(200).json(success('Appointments retrieved.', result));
+    return sendSuccess(res, 200, 'Appointments retrieved.', result);
   } catch (err) {
-    return res.status(400).json(error(err.message));
+    return sendError(res, err.statusCode || 400, err.message);
   }
 };
 
@@ -53,6 +53,9 @@ export const getAppointment = async (req, res) => {
   try {
     const { appointmentId } = req.params;
     const appointment = await service.getAppointment(appointmentId);
+    if (req.user.role === 'patient' && appointment.patient_id !== req.user.patient_id) {
+      return sendError(res, 403, 'Access denied');
+    }
     return sendSuccess(res, 200, 'Appointment retrieved.', { appointment });
   } catch (err) {
     return sendError(res, err.statusCode || 404, err.message);
@@ -62,6 +65,9 @@ export const getAppointment = async (req, res) => {
 export const getPatientAppointments = async (req, res) => {
   try {
     const { patientId } = req.params;
+    if (req.user.role === 'patient' && patientId !== req.user.patient_id) {
+      return sendError(res, 403, 'Access denied');
+    }
     const { status, purpose } = req.query;
     const appointments = await service.getPatientAppointments(patientId, { status, purpose });
     return sendSuccess(res, 200, 'Patient appointments retrieved.', { appointments });
@@ -104,6 +110,12 @@ export const completeAppointment = async (req, res) => {
 export const cancelAppointment = async (req, res) => {
   try {
     const { appointmentId } = req.params;
+    if (req.user.role === 'patient') {
+      const existing = await service.getAppointment(appointmentId);
+      if (existing.patient_id !== req.user.patient_id) {
+        return sendError(res, 403, 'Access denied');
+      }
+    }
     const appointment = await service.cancelAppointment(appointmentId, req.user);
     return sendSuccess(res, 200, 'Appointment cancelled.', { appointment });
   } catch (err) {

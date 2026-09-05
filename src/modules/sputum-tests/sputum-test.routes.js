@@ -37,6 +37,18 @@ router.get(
   controller.listSputumTests,
 );
 router.get(
+  "/my",
+  authenticate,
+  authorizeRoles(ROLES.PATIENT),
+  controller.getMySputumTests,
+);
+router.patch(
+  "/my/:month/submitted",
+  authenticate,
+  authorizeRoles(ROLES.PATIENT),
+  controller.reportSampleSubmitted,
+);
+router.get(
   "/upcoming",
   authenticate,
   authorizeRoles(...ALL_STAFF),
