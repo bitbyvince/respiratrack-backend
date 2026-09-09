@@ -4,7 +4,7 @@ export const createAllocationSchema = Joi.object({
   barangay_id: Joi.string().required(),
   health_center_id: Joi.string().required(),
   drug_name: Joi.string()
-    .valid("Isoniazid", "Rifampicin", "Pyrazinamide", "Ethambutol")
+    .valid("HRZE", "HR", "Isoniazid", "Rifampicin", "Pyrazinamide", "Ethambutol")
     .required(),
   strength: Joi.string().required(),
   unit: Joi.string().valid("tablet", "capsule", "vial").default("tablet"),

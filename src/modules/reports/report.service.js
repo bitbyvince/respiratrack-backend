@@ -405,13 +405,18 @@ export const exportInventoryReportPdf = async ({ barangay_id } = {}) => {
   return res.blob();
 };
 
-export async function buildTreatmentOutcomeReport(barangayId, year) {
+export async function buildTreatmentOutcomeReport(barangayId, year, from, to) {
   const allFilter = { ...(barangayId ? { barangay_id: barangayId } : {}) };
-  if (year)
+  if (from || to) {
+    allFilter.date_started = {};
+    if (from) allFilter.date_started.$gte = new Date(from);
+    if (to) allFilter.date_started.$lte = new Date(to);
+  } else if (year) {
     allFilter.date_started = {
       $gte: new Date(`${year}-01-01`),
       $lte: new Date(`${year}-12-31`),
     };
+  }
 
   const patients = await Patient.find(allFilter).select(
     "patient_id tb_case_number full_name barangay_name treatment_phase " +
@@ -426,6 +431,7 @@ export async function buildTreatmentOutcomeReport(barangayId, year) {
     report_type: "treatment_outcome",
     barangay_id: barangayId ?? "all",
     year: year ?? "all",
+    date_range: { from: from ?? null, to: to ?? null },
     total_patients: total,
     outcome_summary: Object.fromEntries(
       Object.entries(outcomeSummary).map(([k, v]) => [

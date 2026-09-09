@@ -45,5 +45,7 @@ export const getTreatmentOutcomeSchema = Joi.object({
     .min(2020)
     .max(new Date().getFullYear())
     .optional(),
+  from: Joi.date().iso().optional(),
+  to: Joi.date().iso().optional(),
   format: Joi.string().valid("json", "pdf").default("json"),
 });

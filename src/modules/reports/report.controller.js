@@ -156,7 +156,12 @@ export async function getTreatmentOutcomes(req, res) {
     const barangayId = isSuperAdminLevel(role) ? req.query.barangay_id : userBarangay;
     const year = req.query.year ? Number(req.query.year) : undefined;
 
-    const data = await reportService.buildTreatmentOutcomeReport(barangayId, year);
+    const data = await reportService.buildTreatmentOutcomeReport(
+      barangayId,
+      year,
+      req.query.from,
+      req.query.to,
+    );
 
     if (req.query.format === "pdf") {
       const buffer = await generateOutcomePDF(data);

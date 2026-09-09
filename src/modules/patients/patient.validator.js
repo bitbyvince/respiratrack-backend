@@ -283,6 +283,11 @@ export const listPatientsSchema = Joi.object({
   }),
   treatment_phase: Joi.string().valid('Intensive', 'Continuation').optional(),
   is_active: Joi.boolean().optional(),
+  sex: Joi.string().valid('Male', 'Female').optional(),
+  min_age: Joi.number().integer().min(0).optional(),
+  max_age: Joi.number().integer().min(0).optional(),
+  from: Joi.date().iso().optional(),
+  to: Joi.date().iso().optional(),
   search: Joi.string().max(100).optional().allow('').messages({
     'string.max': 'Search query must not exceed 100 characters.',
   }),

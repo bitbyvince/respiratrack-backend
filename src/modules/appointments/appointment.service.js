@@ -9,6 +9,14 @@ const VALID_STATUSES = ['Pending', 'Confirmed', 'Completed', 'Cancelled'];
 // appointment.patient_id is a plain string (not the Patient's _id), so
 // Mongoose .populate() can't resolve it — batch-fetch the matching
 // patients instead and merge their display fields onto each appointment.
+// Pending appointments need action, so they should surface first regardless
+// of date; Array.prototype.sort is stable, so this preserves the date/time
+// ascending order already applied within each status group.
+const sortByStatusPriority = (appointments) =>
+  [...appointments].sort(
+    (a, b) => VALID_STATUSES.indexOf(a.status) - VALID_STATUSES.indexOf(b.status),
+  );
+
 const attachPatientInfo = async (appointments) => {
   const patientIds = [...new Set(appointments.map((a) => a.patient_id))];
   const patients = await Patient.find({ patient_id: { $in: patientIds } })
@@ -173,14 +181,21 @@ export const getAppointments = async (filters, { page, limit }) => {
     if (to) query.scheduled_date.$lte = new Date(to);
   }
 
-  const skip = (parseInt(page) - 1) * parseInt(limit);
-  const [rawAppointments, total] = await Promise.all([
-    Appointment.find(query).sort({ scheduled_date: 1 }).skip(skip).limit(parseInt(limit)),
-    Appointment.countDocuments(query),
-  ]);
+  const pageNum = parseInt(page);
+  const limitNum = parseInt(limit);
+  const skip = (pageNum - 1) * limitNum;
+
+  // Pending-first ordering can't be expressed as a single Mongo sort key,
+  // so fetch the full matching set (date/time ascending) and re-rank by
+  // status before paginating — appointment volumes here are small enough
+  // that this stays cheap.
+  const allMatching = await Appointment.find(query).sort({ scheduled_date: 1, scheduled_time: 1 });
+  const sorted = sortByStatusPriority(allMatching);
+  const total = sorted.length;
+  const rawAppointments = sorted.slice(skip, skip + limitNum);
   const appointments = await attachPatientInfo(rawAppointments);
 
-  return { appointments, total, page: parseInt(page), limit: parseInt(limit) };
+  return { appointments, total, page: pageNum, limit: limitNum };
 };
 
 export const getAppointment = async (appointmentId) => {
@@ -221,8 +236,8 @@ export const getBarangayAppointments = async (barangayId, { status, purpose, dat
     const end = new Date(start.getTime() + 86400000);
     query.scheduled_date = { $gte: start, $lt: end };
   }
-  const appointments = await Appointment.find(query).sort({ scheduled_date: 1 });
-  return await attachPatientInfo(appointments);
+  const appointments = await Appointment.find(query).sort({ scheduled_date: 1, scheduled_time: 1 });
+  return await attachPatientInfo(sortByStatusPriority(appointments));
 };
 
 export const confirmAppointment = async (appointmentId, user) => {

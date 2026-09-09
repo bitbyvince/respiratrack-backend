@@ -36,7 +36,7 @@ export const createInventorySchema = Joi.object({
   health_center_id: Joi.string().trim().required(),
   drug_name: Joi.string()
     .trim()
-    .valid("Isoniazid", "Rifampicin", "Pyrazinamide", "Ethambutol")
+    .valid("HRZE", "HR", "Isoniazid", "Rifampicin", "Pyrazinamide", "Ethambutol")
     .required(),
   strength: Joi.string().trim().required(),
   unit: Joi.string().trim().valid("tablet", "capsule", "vial").default("tablet"),

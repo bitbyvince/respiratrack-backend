@@ -12,7 +12,7 @@ import mongoose from 'mongoose';
 
 const drugRegimenEntrySchema = new mongoose.Schema(
   {
-    drug_name:           { type: String, required: true, trim: true, enum: ['Isoniazid', 'Rifampicin', 'Pyrazinamide', 'Ethambutol'] },
+    drug_name:           { type: String, required: true, trim: true, enum: ['HRZE', 'HR', 'Isoniazid', 'Rifampicin', 'Pyrazinamide', 'Ethambutol'] },
     strength:            { type: String, required: true, trim: true },
     unit:                { type: String, required: true, trim: true, default: 'tablet' },
     number_to_be_taken:  { type: Number, required: true, min: 1 },

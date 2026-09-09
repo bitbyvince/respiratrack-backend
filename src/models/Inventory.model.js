@@ -38,7 +38,7 @@ const inventorySchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      enum: ['Isoniazid', 'Rifampicin', 'Pyrazinamide', 'Ethambutol'],
+      enum: ['HRZE', 'HR', 'Isoniazid', 'Rifampicin', 'Pyrazinamide', 'Ethambutol'],
     },
 
     strength: {

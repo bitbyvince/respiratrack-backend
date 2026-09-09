@@ -29,6 +29,43 @@ const assertSameBarangay = (requester, targetBarangayId) => {
   }
 };
 
+// ── SHARED PATIENT QUERY BUILDER ─────────────────────────
+// Used by both listPatients and exportPatientsPdf so filtering stays
+// in sync between the on-screen table and its PDF export.
+const buildPatientQuery = (filters = {}) => {
+  const query = {
+    ...(filters.barangay_id && { barangay_id: filters.barangay_id }),
+    ...(filters.risk_level && { 'compliance.risk_level': filters.risk_level }),
+    ...(filters.escalation_level !== undefined && {
+      'escalation.level': parseInt(filters.escalation_level),
+    }),
+    ...(filters.treatment_phase && { treatment_phase: filters.treatment_phase }),
+    ...(filters.is_active !== undefined && { is_active: filters.is_active === 'true' }),
+    ...(filters.sex && { sex: filters.sex }),
+    ...(filters.search && {
+      $or: [
+        { full_name: { $regex: filters.search, $options: 'i' } },
+        { tb_case_number: { $regex: filters.search, $options: 'i' } },
+        { patient_id: { $regex: filters.search, $options: 'i' } },
+      ],
+    }),
+  };
+
+  if (filters.min_age !== undefined || filters.max_age !== undefined) {
+    query.age = {};
+    if (filters.min_age !== undefined) query.age.$gte = parseInt(filters.min_age);
+    if (filters.max_age !== undefined) query.age.$lte = parseInt(filters.max_age);
+  }
+
+  if (filters.from || filters.to) {
+    query.created_at = {};
+    if (filters.from) query.created_at.$gte = new Date(filters.from);
+    if (filters.to) query.created_at.$lte = new Date(filters.to);
+  }
+
+  return query;
+};
+
 // ── GENERATE SEQUENTIAL PATIENT ID ──────────────────────
 // Uses regex + sort by patient_id (Tablet fix: more reliable than sorting by created_at)
 const generatePatientId = async () => {
@@ -73,24 +110,7 @@ const buildSputumSchedule = (dateStarted) => {
 // ================================================================
 export const listPatients = async (filters = {}) => {
   const { page, limit, skip } = getPagination(filters);
-
-  const query = {
-    ...(filters.barangay_id && { barangay_id: filters.barangay_id }),
-    ...(filters.risk_level && { 'compliance.risk_level': filters.risk_level }),
-    // Web-only filter: escalation level
-    ...(filters.escalation_level !== undefined && {
-      'escalation.level': parseInt(filters.escalation_level),
-    }),
-    ...(filters.treatment_phase && { treatment_phase: filters.treatment_phase }),
-    ...(filters.is_active !== undefined && { is_active: filters.is_active === 'true' }),
-    ...(filters.search && {
-      $or: [
-        { full_name: { $regex: filters.search, $options: 'i' } },
-        { tb_case_number: { $regex: filters.search, $options: 'i' } },
-        { patient_id: { $regex: filters.search, $options: 'i' } },
-      ],
-    }),
-  };
+  const query = buildPatientQuery(filters);
 
   const [patients, total] = await Promise.all([
     Patient.find(query).skip(skip).limit(limit).sort({ created_at: -1 }),
@@ -489,12 +509,7 @@ export const setPatientActiveStatus = async (patientId, isActive, requester) => 
 // EXPORT PDF
 // ================================================================
 export const exportPatientsPdf = async (filters = {}) => {
-  const query = {
-    ...(filters.barangay_id && { barangay_id: filters.barangay_id }),
-    ...(filters.risk_level && { 'compliance.risk_level': filters.risk_level }),
-    ...(filters.treatment_phase && { treatment_phase: filters.treatment_phase }),
-    ...(filters.is_active !== undefined && { is_active: filters.is_active === 'true' }),
-  };
+  const query = buildPatientQuery(filters);
 
   const patients = await Patient.find(query).sort({ created_at: -1 });
   if (!patients.length) throw createError(404, 'No patients found for the given filters.');
