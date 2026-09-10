@@ -65,6 +65,16 @@ function aggregateOutcomes(patients) {
   return outcomes;
 }
 
+// Mirrors the thresholds Barangay.model.js's own (unused) pre-save
+// hook documents: >=90 low, >=75 moderate, >=60 high, else critical.
+function deriveComplianceRiskLevel(compliancePercentage, totalActive) {
+  if (totalActive === 0) return "low";
+  if (compliancePercentage >= 90) return "low";
+  if (compliancePercentage >= 75) return "moderate";
+  if (compliancePercentage >= 60) return "high";
+  return "critical";
+}
+
 function aggregateRiskLevels(patients) {
   return patients.reduce(
     (acc, p) => {
@@ -207,7 +217,7 @@ export async function buildBarangayReport(barangayId, options = {}) {
       barangay_id: barangay.barangay_id,
       name: barangay.name,
       municipality: barangay.municipality,
-      health_center: barangay.health_center,
+      health_centers: barangay.health_centers,
       stats: barangay.stats,
     },
     patient_summary: {
@@ -255,7 +265,7 @@ export async function buildCityReport(options = {}) {
         "barangay_id barangay_name snapshot_date compliance_percentage compliant_count at_risk_count defaulter_count average_risk_score",
       ),
     Inventory.find({}).select(
-      "barangay_id drug_name strength remaining_stock stock_status",
+      "barangay_id health_center_id drug_name strength remaining_stock stock_status",
     ),
   ]);
 
@@ -296,17 +306,30 @@ export async function buildCityReport(options = {}) {
       const brgyPatients = allPatients.filter(
         (p) => p.barangay_id === brgy.barangay_id,
       );
+      const riskSummary = aggregateRiskLevels(brgyPatients);
+      const totalActive = brgyPatients.length;
+      // Computed live from actual patients — Barangay.stats is a
+      // separate cached field nothing currently keeps up to date, so
+      // reading it here silently showed 0%/"low" for every barangay
+      // regardless of real data.
+      const compliancePercentage = totalActive > 0
+        ? parseFloat(((riskSummary.compliant / totalActive) * 100).toFixed(2))
+        : 0;
       return {
         barangay_id: brgy.barangay_id,
         name: brgy.name,
-        health_center_name: brgy.health_center?.name,
-        total_active: brgyPatients.length,
-        risk_summary: aggregateRiskLevels(brgyPatients),
-        compliance_percentage: brgy.stats?.compliance_percentage ?? 0,
-        risk_level: brgy.stats?.risk_level ?? "low",
+        health_center_name: (brgy.health_centers || []).map((hc) => hc.name).join(", ") || "—",
+        total_active: totalActive,
+        risk_summary: riskSummary,
+        compliance_percentage: compliancePercentage,
+        risk_level: deriveComplianceRiskLevel(compliancePercentage, totalActive),
       };
     }),
     compliance_snapshots: allSnapshots,
+    // Full stock list (not just problem items) — the dashboard's
+    // "Stock Distribution" chart needs the actual breakdown by drug,
+    // which is empty whenever nothing happens to be Low/Critical.
+    stock_items: inventory,
     critical_stock_items: inventory.filter(
       (i) => i.stock_status === "Critical" || i.stock_status === "Stockout",
     ),
@@ -315,20 +338,52 @@ export async function buildCityReport(options = {}) {
 }
 
 export async function getComplianceTrend(barangayId, period = "monthly", from, to, limit = 30) {
-  const filter = { period };
-  if (barangayId) filter.barangay_id = barangayId;
+  const match = { period };
+  if (barangayId) match.barangay_id = barangayId;
   if (from || to) {
-    filter.snapshot_date = {};
-    if (from) filter.snapshot_date.$gte = new Date(from);
-    if (to) filter.snapshot_date.$lte = new Date(to);
+    match.snapshot_date = {};
+    if (from) match.snapshot_date.$gte = new Date(from);
+    if (to) match.snapshot_date.$lte = new Date(to);
   }
 
-  const snapshots = await HeatmapSnapshot.find(filter)
-    .sort({ snapshot_date: -1 })
-    .limit(limit)
-    .select("barangay_id barangay_name snapshot_date compliance_rate at_risk_count defaulter_count active_cases");
+  // HeatmapSnapshot is scoped per HEALTH CENTER, not per barangay — a
+  // barangay (or the whole city, with no filter) can have several
+  // snapshot rows sharing the same snapshot_date. Without grouping by
+  // date, those facilities would each show up as their own point on
+  // the trend line, making it look like several different months when
+  // it's really one date across several clinics.
+  const trend = await HeatmapSnapshot.aggregate([
+    { $match: match },
+    {
+      $group: {
+        _id: "$snapshot_date",
+        active_cases: { $sum: "$active_cases" },
+        at_risk_count: { $sum: "$at_risk_count" },
+        defaulter_count: { $sum: "$defaulter_count" },
+        weighted_compliance: { $sum: { $multiply: ["$compliance_rate", "$active_cases"] } },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        snapshot_date: "$_id",
+        active_cases: 1,
+        at_risk_count: 1,
+        defaulter_count: 1,
+        compliance_rate: {
+          $cond: [
+            { $gt: ["$active_cases", 0] },
+            { $round: [{ $divide: ["$weighted_compliance", "$active_cases"] }, 2] },
+            0,
+          ],
+        },
+      },
+    },
+    { $sort: { snapshot_date: -1 } },
+    { $limit: limit },
+  ]);
 
-  return snapshots.reverse();
+  return trend.reverse();
 }
 
 export async function buildInventoryReport(barangayId) {
@@ -405,7 +460,7 @@ export const exportInventoryReportPdf = async ({ barangay_id } = {}) => {
   return res.blob();
 };
 
-export async function buildTreatmentOutcomeReport(barangayId, year, from, to) {
+export async function buildTreatmentOutcomeReport(barangayId, year, from, to, healthCenterId) {
   const allFilter = { ...(barangayId ? { barangay_id: barangayId } : {}) };
   if (from || to) {
     allFilter.date_started = {};
@@ -426,10 +481,22 @@ export async function buildTreatmentOutcomeReport(barangayId, year, from, to) {
   const outcomeSummary = aggregateOutcomes(patients);
   const total = patients.length;
 
+  let barangayName = null;
+  let healthCenterName = null;
+  if (barangayId) {
+    const barangay = await Barangay.findOne({ barangay_id: barangayId }).select("name health_centers.health_center_id health_centers.name");
+    barangayName = barangay?.name ?? null;
+    const centers = barangay?.health_centers || [];
+    const match = healthCenterId && centers.find((hc) => hc.health_center_id === healthCenterId);
+    healthCenterName = match ? match.name : centers.map((hc) => hc.name).join(" / ") || null;
+  }
+
   return {
     generated_at: new Date(),
     report_type: "treatment_outcome",
     barangay_id: barangayId ?? "all",
+    barangay_name: barangayName,
+    health_center_name: healthCenterName,
     year: year ?? "all",
     date_range: { from: from ?? null, to: to ?? null },
     total_patients: total,

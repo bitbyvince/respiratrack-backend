@@ -7,6 +7,7 @@ import ROLES from '../../constants/roles.js';
 import {
   registerPatientSchema,
   updatePatientSchema,
+  transferPatientSchema,
   updateContactSchema,
   updateTreatmentOutcomeSchema,
   updateSputumScheduleSchema,
@@ -32,7 +33,7 @@ router.patch(
 );
 router.get(
   '/export/pdf',  // ← Moved up from bottom (fix from Tablet branch)
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.BARANGAY_ADMIN, ROLES.PATC),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.BARANGAY_ADMIN, ROLES.NURSE, ROLES.PATC),
   patientController.exportPatientsPdf,
 );
 
@@ -70,6 +71,12 @@ router.patch(
   roleMiddleware(ROLES.BARANGAY_ADMIN, ROLES.NURSE),
   validate(updateSputumScheduleSchema),
   patientController.updateSputumSchedule,
+);
+router.patch(
+  '/:patient_id/transfer',
+  roleMiddleware(ROLES.BARANGAY_ADMIN, ROLES.SUPER_ADMIN, ROLES.PATC),
+  validate(transferPatientSchema),
+  patientController.transferPatient,
 );
 router.patch(
   '/:patient_id/deactivate',

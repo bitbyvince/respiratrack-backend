@@ -47,6 +47,16 @@ const AlertSchema = new Schema(
       ref: "Barangay",
     },
 
+    // Optional — a barangay can have more than one health center, so
+    // facility-specific alerts (e.g. low stock at ONE clinic) use this
+    // to avoid colliding with another facility's alert in the same
+    // barangay. Alerts that are genuinely barangay-wide leave it null.
+    health_center_id: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+
     // ── Alert classification ───────────────────────────────
     alert_type: {
       type: String,
@@ -86,6 +96,23 @@ const AlertSchema = new Schema(
       trim: true,
       maxlength: 500,
       // e.g. "Patient PHNT-1304-071-S26-0001 has missed 2 consecutive doses."
+    },
+
+    // Only populated for alert_type "Stock Request" — the drugs/quantities
+    // computed from the registering patient's drug_regimen (tablets per
+    // dose x total course doses), so the resolving admin sees exactly what
+    // to send instead of parsing it out of the free-text message.
+    stock_request_items: {
+      type: [
+        {
+          drug_name: { type: String, trim: true },
+          strength: { type: String, trim: true },
+          unit: { type: String, trim: true },
+          quantity_needed: { type: Number, min: 0 },
+          _id: false,
+        },
+      ],
+      default: undefined,
     },
 
     // ── Audience ───────────────────────────────────────────

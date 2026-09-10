@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import DispensingRecord from "../../models/DispensingRecord.model.js";
 import Patient from "../../models/Patient.model.js";
 import Inventory from "../../models/Inventory.model.js";
+import MedicationLog from "../../models/MedicationLog.model.js";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -197,6 +198,97 @@ export async function getActivePatientsForDispensing(barangayId) {
   );
 
   return summaries;
+}
+
+const STATUS_RANK = { Critical: 0, Low: 1, Normal: 2, New: 3 };
+
+function computeDrugSupplyStatus(regimenItem, lastRecord, dosesTaken) {
+  const base = {
+    drug_name: regimenItem.drug_name,
+    strength: regimenItem.strength,
+    unit: regimenItem.unit,
+    number_to_be_taken: regimenItem.number_to_be_taken,
+  };
+
+  if (!lastRecord) {
+    return {
+      ...base,
+      last_dispensed_date: null,
+      quantity_dispensed: null,
+      days_supplied: null,
+      remaining_quantity: null,
+      status: "New",
+    };
+  }
+
+  const consumed = dosesTaken * regimenItem.number_to_be_taken;
+  const remainingQuantity = Math.max(0, lastRecord.quantity_dispensed - consumed);
+  const daysOfSupplyLeft =
+    regimenItem.number_to_be_taken > 0 ? remainingQuantity / regimenItem.number_to_be_taken : null;
+
+  let status = "Normal";
+  if (remainingQuantity <= 0) status = "Critical";
+  else if (daysOfSupplyLeft !== null && daysOfSupplyLeft <= 2) status = "Low";
+
+  return {
+    ...base,
+    last_dispensed_date: lastRecord.dispense_date,
+    quantity_dispensed: lastRecord.quantity_dispensed,
+    days_supplied: lastRecord.days_supplied,
+    remaining_quantity: remainingQuantity,
+    status,
+  };
+}
+
+export async function getMySupplyStatus(patientId) {
+  const patient = await Patient.findOne({ patient_id: patientId }).select("drug_regimen");
+  if (!patient) throw new Error("Patient not found.");
+
+  const records = await DispensingRecord.find({ patient_id: patientId }).sort({
+    dispense_date: -1,
+  });
+
+  const latestByDrug = new Map();
+  for (const record of records) {
+    if (!latestByDrug.has(record.drug_name)) latestByDrug.set(record.drug_name, record);
+  }
+
+  const dispenseDates = [...latestByDrug.values()].map((r) => r.dispense_date);
+  const earliestDispenseDate = dispenseDates.length
+    ? new Date(Math.min(...dispenseDates.map((d) => d.getTime())))
+    : null;
+
+  const logs = earliestDispenseDate
+    ? await MedicationLog.find({
+        patient_id: patientId,
+        log_date: { $gte: earliestDispenseDate },
+      }).select("log_date medicines")
+    : [];
+
+  const countDosesTaken = (drugName, sinceDate) =>
+    logs.filter(
+      (log) =>
+        log.log_date >= sinceDate &&
+        log.medicines.some((m) => m.drug_name === drugName && m.status === "Taken")
+    ).length;
+
+  const medicines = patient.drug_regimen.map((item) => {
+    const lastRecord = latestByDrug.get(item.drug_name);
+    const dosesTaken = lastRecord ? countDosesTaken(item.drug_name, lastRecord.dispense_date) : 0;
+    return computeDrugSupplyStatus(item, lastRecord, dosesTaken);
+  });
+
+  const worst = medicines.reduce(
+    (acc, med) => (STATUS_RANK[med.status] < STATUS_RANK[acc.status] ? med : acc),
+    medicines[0] ?? { status: "New" }
+  );
+
+  return {
+    overall: {
+      status: worst.status,
+    },
+    medicines,
+  };
 }
 
 export async function getDispensingRecords(filters, { page = 1, limit = 20 }) {

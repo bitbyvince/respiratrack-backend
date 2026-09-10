@@ -12,8 +12,17 @@ import mongoose from 'mongoose';
 
 const drugRegimenEntrySchema = new mongoose.Schema(
   {
-    drug_name:           { type: String, required: true, trim: true, enum: ['HRZE', 'HR', 'Isoniazid', 'Rifampicin', 'Pyrazinamide', 'Ethambutol'] },
-    strength:            { type: String, required: true, trim: true },
+    drug_name: { type: String, required: true, trim: true, enum: ['HRZE', 'HR', 'Isoniazid', 'Rifampicin', 'Pyrazinamide', 'Ethambutol'] },
+    // HRZE/HR are fixed-dose combinations with no separate strength to
+    // pick — only the individual single drugs need one.
+    strength: {
+      type: String,
+      trim: true,
+      default: '',
+      required: function () {
+        return !['HRZE', 'HR'].includes(this.drug_name);
+      },
+    },
     unit:                { type: String, required: true, trim: true, default: 'tablet' },
     number_to_be_taken:  { type: Number, required: true, min: 1 },
   },
@@ -77,6 +86,8 @@ const patientSchema = new mongoose.Schema(
     birth_date: { type: Date, required: true },
     age:        { type: Number, required: true, min: 0 },
     sex:        { type: String, required: true, enum: ['Male', 'Female'] },
+    weight_kg:  { type: Number, min: 0, default: null },
+    height_cm:  { type: Number, min: 0, default: null },
 
     philhealth_number: { type: String, trim: true, default: null },
     phone_number:      { type: String, trim: true, default: null },
@@ -227,6 +238,7 @@ const patientSchema = new mongoose.Schema(
     // ── Contact Tracing ──────────────────────────────────────
     contact_tracing: {
       number_of_contacts: { type: Number, default: 0, min: 0 },
+      contact_names:      { type: [String], default: [] },
       schedule:           { type: Date,   default: null },
     },
 
@@ -244,6 +256,8 @@ const patientSchema = new mongoose.Schema(
     },
 
     last_reminder_sent: { type: Date, default: null },
+
+    last_supply_alert_sent: { type: Date, default: null },
 
     // ── Compliance ───────────────────────────────────────────
     compliance: {

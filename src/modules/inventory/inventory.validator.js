@@ -2,6 +2,7 @@ import Joi from "joi";
 
 export const getInventorySchema = Joi.object({
   barangay_id: Joi.string().optional(),
+  health_center_id: Joi.string().optional(),
   stock_status: Joi.string().valid("OK", "Low", "Critical", "Stockout").optional(),
   drug_name: Joi.string().optional(),
   page: Joi.number().integer().min(1).default(1),
@@ -38,4 +39,22 @@ export const getStockoutPredictionSchema = Joi.object({
 export const restockInventorySchema = Joi.object({
   quantity_added: Joi.number().integer().min(1).required(),
   notes: Joi.string().trim().optional().allow(""),
+});
+
+export const createInventorySchema = Joi.object({
+  barangay_id: Joi.string().optional(), // barangay admins are pinned to their own; super admins must supply it
+  health_center_id: Joi.string().required(),
+  drug_name: Joi.string()
+    .valid("HRZE", "HR", "Isoniazid", "Rifampicin", "Pyrazinamide", "Ethambutol")
+    .required(),
+  // HRZE/HR are fixed-dose combinations with no meaningful strength of
+  // their own — only the individual single drugs need one.
+  strength: Joi.string().trim().when('drug_name', {
+    is: Joi.valid('HRZE', 'HR'),
+    then: Joi.string().allow('', null).optional(),
+    otherwise: Joi.string().required(),
+  }),
+  unit: Joi.string().valid("tablet", "capsule", "vial").default("tablet"),
+  initial_quantity: Joi.number().integer().min(1).required(),
+  expiry_date: Joi.date().iso().required(),
 });

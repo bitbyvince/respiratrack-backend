@@ -17,6 +17,11 @@ const ROLES = {
 // True for roles that get unrestricted, all-barangay access (super_admin, patc).
 export const isSuperAdminLevel = (role) => ROLES.SUPER_ADMIN_LEVEL.includes(role);
 
+// Display name for the PATC role's own facility — used to label reports
+// PATC generates (municipal-wide, not tied to any single barangay) the
+// same way a barangay admin's report is labeled with their health center.
+export const PATC_FACILITY_NAME = "Pasig Treatment Center";
+
 // replace: module.exports = ROLES;
 export { ROLES };
 export default ROLES;

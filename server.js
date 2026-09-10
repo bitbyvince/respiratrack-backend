@@ -10,6 +10,7 @@ import { runMedicationReminderJob } from "./src/jobs/medicationReminder.job.js";
 import { runAppointmentReminderJob } from "./src/jobs/appointmentReminder.job.js";
 import { runAppointmentAutoCancelJob } from "./src/jobs/appointmentAutoCancel.job.js";
 import { runMissedDoseJob } from "./src/jobs/missedDose.job.js";
+import { runSupplyReminderJob } from "./src/jobs/supplyReminder.job.js";
 
 
 
@@ -40,6 +41,8 @@ app.listen(PORT, () => {
   // Missed dose detection — runs once on startup, then daily, end of day
   runMissedDoseJob();
   cron.schedule("0 21 * * *", runMissedDoseJob, { timezone: "Asia/Manila" });
+
+  cron.schedule("0 8 * * *", runSupplyReminderJob, { timezone: "Asia/Manila" });
 
   console.log("✅ Cron jobs registered");
 });

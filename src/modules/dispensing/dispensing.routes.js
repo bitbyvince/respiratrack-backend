@@ -2,6 +2,7 @@ import { Router } from "express";
 import * as controller from "./dispensing.controller.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import {
+  authorize,
   authorizeStaffOrPatc,
   authorizeStockDispensingOrPatc,
   enforceBarangayScope,
@@ -38,6 +39,13 @@ router.get(
   enforceBarangayScope,
   validate(listDispensingSchema, "query"),
   controller.getDispensingRecords
+);
+
+router.get(
+  "/my-supply",
+  authenticate,
+  authorize("patient"),
+  controller.getMySupplyStatus
 );
 
 router.get(

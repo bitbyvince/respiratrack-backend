@@ -36,9 +36,13 @@ const env = {
   BCRYPT_SALT_ROUNDS: parseInt(optional("BCRYPT_SALT_ROUNDS", "10"), 10),
 
   // ── SMS (for OTP delivery) ───────────────────────────────
-  SMS_PROVIDER: optional("SMS_PROVIDER", "semaphore"), // or "twilio", etc.
+  SMS_PROVIDER: optional("SMS_PROVIDER", "semaphore"), // "semaphore" | "twilio" | "twilio_verify"
   SMS_API_KEY: optional("SMS_API_KEY"),
   SMS_SENDER_NAME: optional("SMS_SENDER_NAME", "RespiraTrack"),
+  TWILIO_ACCOUNT_SID: optional("TWILIO_ACCOUNT_SID"),
+  TWILIO_AUTH_TOKEN: optional("TWILIO_AUTH_TOKEN"),
+  TWILIO_VERIFY_SERVICE_SID: optional("TWILIO_VERIFY_SERVICE_SID"), // required when SMS_PROVIDER=twilio_verify
+  TWILIO_PHONE_NUMBER: optional("TWILIO_PHONE_NUMBER"), // E.164 format, e.g. +15551234567
 
   // ── Case Number Generation ───────────────────────────────
   DEFAULT_PROVINCE_CODE: optional("DEFAULT_PROVINCE_CODE", "1304"),

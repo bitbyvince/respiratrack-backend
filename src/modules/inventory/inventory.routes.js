@@ -9,6 +9,7 @@ import {
   getLowStockSchema,
   getStockoutPredictionSchema,
   restockInventorySchema,
+  createInventorySchema,
 } from "./inventory.validator.js";
 import { ROLES } from "../../constants/roles.js";
 
@@ -23,6 +24,14 @@ router.get(
   authorizeRoles(...ALL_STAFF),
   validate(getInventorySchema, "query"),
   controller.listInventory
+);
+
+router.post(
+  "/",
+  authenticate,
+  authorizeRoles(...ADMIN_AND_ABOVE),
+  validate(createInventorySchema),
+  controller.createInventoryItem
 );
 
 router.get(

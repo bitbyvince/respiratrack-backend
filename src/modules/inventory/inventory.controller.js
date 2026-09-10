@@ -4,10 +4,12 @@ import { isSuperAdminLevel } from "../../constants/roles.js";
 
 export async function listInventory(req, res) {
   try {
-    const { role, barangay_id: userBarangay } = req.user;
+    const { role, barangay_id: userBarangay, health_center_id: userHealthCenter } = req.user;
     const barangay_id = isSuperAdminLevel(role) ? req.query.barangay_id : userBarangay;
+    const health_center_id = isSuperAdminLevel(role) ? req.query.health_center_id : userHealthCenter;
     const result = await inventoryService.listInventory({
       barangay_id,
+      health_center_id,
       stock_status: req.query.stock_status,
       drug_name: req.query.drug_name,
       page: Number(req.query.page) || 1,
@@ -62,6 +64,28 @@ export async function getInventoryItem(req, res) {
       return sendError(res, 403, "Access denied to this inventory record");
     }
     return sendSuccess(res, 200, "Inventory item fetched", item);
+  } catch (err) {
+    return sendError(res, err.statusCode || 500, err.message);
+  }
+}
+
+export async function createInventoryItem(req, res) {
+  try {
+    const { role, barangay_id: userBarangay, user_id } = req.user;
+    const barangay_id = isSuperAdminLevel(role) ? req.body.barangay_id : userBarangay;
+    if (!barangay_id) {
+      return sendError(res, 400, "barangay_id is required");
+    }
+    if (!isSuperAdminLevel(role) && req.body.barangay_id && req.body.barangay_id !== userBarangay) {
+      return sendError(res, 403, "Access denied to create inventory for a different barangay");
+    }
+
+    const item = await inventoryService.createInventoryItem({
+      ...req.body,
+      barangay_id,
+      createdByUserId: user_id,
+    });
+    return sendSuccess(res, 201, "Inventory item created", item);
   } catch (err) {
     return sendError(res, err.statusCode || 500, err.message);
   }

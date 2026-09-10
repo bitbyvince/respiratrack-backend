@@ -48,6 +48,16 @@ const heatmapSnapshotSchema = new mongoose.Schema(
       // Denormalized for fast map rendering
     },
 
+    // ── Health Center Reference ───────────────────────────────
+    // A barangay can have more than one health center, so the snapshot
+    // is scoped to ONE specific facility, not the whole barangay —
+    // this is the field the unique index is built on.
+    health_center_id: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
     health_center_name: {
       type: String,
       required: true,
@@ -157,21 +167,21 @@ heatmapSnapshotSchema.index({ barangay_id: 1, period: 1, snapshot_date: -1 });
 heatmapSnapshotSchema.index({ snapshot_date: -1 });
 heatmapSnapshotSchema.index({ coordinates: '2dsphere' });
 heatmapSnapshotSchema.index({ period: 1, snapshot_date: -1 });
-heatmapSnapshotSchema.index({ barangay_id: 1, period: 1, snapshot_date: 1 }, { unique: true });
+heatmapSnapshotSchema.index({ health_center_id: 1, period: 1, snapshot_date: 1 }, { unique: true });
 
-// ── Static: latest snapshot per period for all barangays ────
+// ── Static: latest snapshot per period for all health centers ─
 heatmapSnapshotSchema.statics.getLatestAll = function (period = 'monthly') {
   return this.aggregate([
     { $match: { period } },
     { $sort: { snapshot_date: -1 } },
-    { $group: { _id: '$barangay_id', doc: { $first: '$$ROOT' } } },
+    { $group: { _id: '$health_center_id', doc: { $first: '$$ROOT' } } },
     { $replaceRoot: { newRoot: '$doc' } },
   ]);
 };
 
-// ── Static: latest snapshot for one barangay ────────────────
-heatmapSnapshotSchema.statics.getLatestByBarangay = function (barangay_id, period = 'monthly') {
-  return this.findOne({ barangay_id, period }).sort({ snapshot_date: -1 });
+// ── Static: latest snapshot for one health center ────────────
+heatmapSnapshotSchema.statics.getLatestByHealthCenter = function (health_center_id, period = 'monthly') {
+  return this.findOne({ health_center_id, period }).sort({ snapshot_date: -1 });
 };
 
 export default mongoose.model('HeatmapSnapshot', heatmapSnapshotSchema);

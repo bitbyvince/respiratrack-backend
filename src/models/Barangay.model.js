@@ -15,6 +15,34 @@ const { Schema, model } = mongoose;
 
 // ── Sub-schemas ────────────────────────────────────────────
 
+// GeoJSON Point — used for heatmap centroid marker
+const PointSchema = new Schema(
+  {
+    type: {
+      type: String,
+      enum: ["Point"],
+      required: true,
+      default: "Point",
+    },
+    coordinates: {
+      type: [Number],
+      required: true,
+      validate: {
+        validator: (arr) =>
+          arr.length === 2 &&
+          arr[0] >= -180 &&
+          arr[0] <= 180 && // longitude
+          arr[1] >= -90 &&
+          arr[1] <= 90, // latitude
+        message: "coordinates must be [longitude, latitude] with valid ranges.",
+      },
+      // [longitude, latitude] — GeoJSON order
+      // e.g. [120.9842, 14.5995]
+    },
+  },
+  { _id: false },
+);
+
 const HealthCenterSchema = new Schema(
   {
     health_center_id: {
@@ -43,33 +71,14 @@ const HealthCenterSchema = new Schema(
         "contact_number must be a valid PH mobile number.",
       ],
     },
-  },
-  { _id: false },
-);
-
-// GeoJSON Point — used for heatmap centroid marker
-const PointSchema = new Schema(
-  {
-    type: {
-      type: String,
-      enum: ["Point"],
-      required: true,
-      default: "Point",
-    },
+    // The facility's own real-world location — optional because the
+    // "Add Health Center" form only ever collects one Map Center point
+    // for the whole barangay. When present (e.g. backfilled via
+    // geocoding), the heatmap uses this exact pin instead of falling
+    // back to the barangay's centroid.
     coordinates: {
-      type: [Number],
-      required: true,
-      validate: {
-        validator: (arr) =>
-          arr.length === 2 &&
-          arr[0] >= -180 &&
-          arr[0] <= 180 && // longitude
-          arr[1] >= -90 &&
-          arr[1] <= 90, // latitude
-        message: "coordinates must be [longitude, latitude] with valid ranges.",
-      },
-      // [longitude, latitude] — GeoJSON order
-      // e.g. [120.9842, 14.5995]
+      type: PointSchema,
+      required: false,
     },
   },
   { _id: false },
@@ -235,10 +244,17 @@ const BarangaySchema = new Schema(
       // e.g. "071" for San Isidro
     },
 
-    // ── Health center ─────────────────────────────────────
-    health_center: {
-      type: HealthCenterSchema,
+    // ── Health centers ────────────────────────────────────
+    // A barangay can have more than one designated health center
+    // (e.g. a regular barangay health center plus a Super Health
+    // Center), so this is an array, not a single embedded doc.
+    health_centers: {
+      type: [HealthCenterSchema],
       required: true,
+      validate: {
+        validator: (arr) => Array.isArray(arr) && arr.length > 0,
+        message: "At least one health center is required.",
+      },
     },
 
     // ── Geospatial data ───────────────────────────────────

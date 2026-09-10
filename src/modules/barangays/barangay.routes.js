@@ -11,6 +11,7 @@ import { validate } from "../../middleware/validate.middleware.js";
 import {
   createBarangaySchema,
   updateBarangaySchema,
+  addHealthCenterSchema,
 } from "./barangay.validator.js";
 
 const router = Router();
@@ -37,6 +38,14 @@ router.get(
   authorizeStaffOrPatc,
   enforceBarangayScope,
   controller.getBarangay
+);
+
+router.post(
+  "/:barangayId/health-centers",
+  authenticate,
+  authorizeSuperAdmin,
+  validate(addHealthCenterSchema),
+  controller.addHealthCenter
 );
 
 router.patch(

@@ -34,27 +34,30 @@ function estimateStockoutDate(inventoryDoc, avgDailyRate) {
 }
 
 async function syncStockAlert(inventoryDoc, resolvedByUserId = null) {
+  // Scoped to this facility specifically — a barangay with more than
+  // one health center must not have one clinic's low-stock alert
+  // collide with (and overwrite) another's.
+  const dedupeFilter = {
+    barangay_id: inventoryDoc.barangay_id,
+    health_center_id: inventoryDoc.health_center_id,
+    alert_type: ALERT_TYPES.LOW_STOCK,
+    status: "Active",
+    message: new RegExp(`${inventoryDoc.drug_name} ${inventoryDoc.strength}`, "i"),
+  };
+
   const isProblematic =
     inventoryDoc.stock_status === "Low" ||
     inventoryDoc.stock_status === "Critical" ||
     inventoryDoc.stock_status === "Stockout";
 
   if (!isProblematic) {
-    await Alert.updateMany(
-      {
-        barangay_id: inventoryDoc.barangay_id,
-        alert_type: ALERT_TYPES.LOW_STOCK,
-        status: "Active",
-        message: new RegExp(`${inventoryDoc.drug_name} ${inventoryDoc.strength}`, "i"),
+    await Alert.updateMany(dedupeFilter, {
+      $set: {
+        status: "Resolved",
+        resolved_at: new Date(),
+        resolved_by: resolvedByUserId,
       },
-      {
-        $set: {
-          status: "Resolved",
-          resolved_at: new Date(),
-          resolved_by: resolvedByUserId,
-        },
-      }
-    );
+    });
     return;
   }
 
@@ -70,12 +73,7 @@ async function syncStockAlert(inventoryDoc, resolvedByUserId = null) {
     `(${inventoryDoc.remaining_stock} tablets remaining).`;
 
   await Alert.findOneAndUpdate(
-    {
-      barangay_id: inventoryDoc.barangay_id,
-      alert_type: ALERT_TYPES.LOW_STOCK,
-      status: "Active",
-      message: new RegExp(`${inventoryDoc.drug_name} ${inventoryDoc.strength}`, "i"),
-    },
+    dedupeFilter,
     {
       $setOnInsert: {
         patient_id: null,
@@ -85,6 +83,7 @@ async function syncStockAlert(inventoryDoc, resolvedByUserId = null) {
       },
       $set: {
         barangay_id: inventoryDoc.barangay_id,
+        health_center_id: inventoryDoc.health_center_id,
         alert_type: ALERT_TYPES.LOW_STOCK,
         severity,
         message,
@@ -98,31 +97,45 @@ async function syncStockAlert(inventoryDoc, resolvedByUserId = null) {
   );
 }
 
-// ✅ New — live count of "On Treatment" patients per barangay+drug,
-// keyed as "<barangay_id>::<drug_name>" so it works whether we're
-// scoped to one barangay (barangay_admin) or all of them (super_admin).
-async function computeActivePatientCounts(barangayId) {
+// Live count of "On Treatment" patients per health-center+drug, keyed
+// as "<health_center_id>::<drug_name>" — a barangay can have more
+// than one facility, so barangay_id alone isn't a fine-grained enough
+// key (it would merge two different clinics' patient counts).
+async function computeActivePatientCounts(barangayId, healthCenterId) {
   const match = { "treatment_outcome.status": "On Treatment" };
-  if (barangayId) match.barangay_id = barangayId;
+  if (healthCenterId) match.health_center_id = healthCenterId;
+  else if (barangayId) match.barangay_id = barangayId;
 
-  const patients = await Patient.find(match).select("barangay_id drug_regimen.drug_name");
+  const patients = await Patient.find(match).select("health_center_id drug_regimen.drug_name");
 
   const counts = {};
   for (const patient of patients) {
     const drugNames = new Set((patient.drug_regimen || []).map((entry) => entry.drug_name));
     for (const drugName of drugNames) {
-      const key = `${patient.barangay_id}::${drugName}`;
+      const key = `${patient.health_center_id}::${drugName}`;
       counts[key] = (counts[key] || 0) + 1;
     }
   }
   return counts;
 }
 
+async function generateInventoryId() {
+  const latest = await Inventory.findOne(
+    { inventory_id: { $regex: "^INV-" } },
+    { inventory_id: 1 }
+  ).sort({ inventory_id: -1 });
+
+  if (!latest) return "INV-0001";
+  const num = parseInt(latest.inventory_id.split("-")[1], 10);
+  return `INV-${String(num + 1).padStart(4, "0")}`;
+}
+
 // ─── Service Functions ────────────────────────────────────────────────────────
 
-export async function listInventory({ barangay_id, stock_status, drug_name, page, limit }) {
+export async function listInventory({ barangay_id, health_center_id, stock_status, drug_name, page, limit }) {
   const filter = {};
-  if (barangay_id) filter.barangay_id = barangay_id;
+  if (health_center_id) filter.health_center_id = health_center_id;
+  else if (barangay_id) filter.barangay_id = barangay_id;
   if (stock_status) filter.stock_status = stock_status;
   if (drug_name) filter.drug_name = new RegExp(drug_name, "i");
 
@@ -132,16 +145,54 @@ export async function listInventory({ barangay_id, stock_status, drug_name, page
     Inventory.countDocuments(filter),
   ]);
 
-  const activePatientCounts = await computeActivePatientCounts(barangay_id);
+  const activePatientCounts = await computeActivePatientCounts(barangay_id, health_center_id);
 
   const data = rawData.map((item) => {
     const obj = item.toObject();
-    const key = `${item.barangay_id}::${item.drug_name}`;
+    const key = `${item.health_center_id}::${item.drug_name}`;
     obj.active_patients_on_this_drug = activePatientCounts[key] || 0;
     return obj;
   });
 
   return { data, total, page, limit, pages: Math.ceil(total / limit) };
+}
+
+export async function createInventoryItem({
+  barangay_id,
+  health_center_id,
+  drug_name,
+  strength,
+  unit,
+  initial_quantity,
+  expiry_date,
+  createdByUserId,
+}) {
+  const existing = await Inventory.findOne({ health_center_id, drug_name, strength });
+  if (existing) {
+    throw new Error(
+      "An inventory record for this drug and strength already exists for this health center — use restock instead."
+    );
+  }
+
+  const inventory_id = await generateInventoryId();
+  const item = await Inventory.create({
+    inventory_id,
+    barangay_id,
+    health_center_id,
+    drug_name,
+    strength,
+    unit: unit || "tablet",
+    total_allocated: initial_quantity,
+    total_dispensed: 0,
+    remaining_stock: initial_quantity,
+    active_patients_on_this_drug: 0,
+    expiry_date: new Date(expiry_date),
+    last_updated_at: new Date(),
+  });
+
+  await syncStockAlert(item, createdByUserId);
+
+  return item;
 }
 
 export async function getInventoryById(inventoryId) {

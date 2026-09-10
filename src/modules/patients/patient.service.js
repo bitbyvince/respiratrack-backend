@@ -10,6 +10,7 @@ import { generatePatientListPdf } from '../../utils/pdfExporter.js';
 import ROLES, { isSuperAdminLevel } from '../../constants/roles.js';
 import { createAlert } from '../alerts/alert.service.js';
 import { sendToDevice } from '../../utils/firebaseMessaging.js';
+import { TOTAL_COURSE_DOSES, suggestTabletsPerDose } from '../../utils/tbDosing.js';
 
 // ── PAGINATION ───────────────────────────────────────────
 const DEFAULT_PAGE = 1;
@@ -246,6 +247,8 @@ export const registerPatient = async (data, requester) => {
     birth_date: new Date(data.birth_date),
     age: data.age,
     sex: data.sex,
+    weight_kg: data.weight_kg ?? null,
+    height_cm: data.height_cm ?? null,
     philhealth_number: data.philhealth_number || null,
     phone_number: data.phone_number,
     email: data.email || null,
@@ -283,6 +286,7 @@ export const registerPatient = async (data, requester) => {
     },
     contact_tracing: {
       number_of_contacts: data.contact_tracing?.number_of_contacts ?? 0,
+      contact_names: data.contact_tracing?.contact_names ?? [],
       schedule: data.contact_tracing?.schedule ? new Date(data.contact_tracing.schedule) : null,
     },
     additional_notes: data.additional_notes || '',
@@ -308,10 +312,23 @@ export const registerPatient = async (data, requester) => {
 
     // Notify barangay_admin/patc/super_admin that this health center needs restocking
     try {
-      const drugList = (patient.drug_regimen || [])
-        .map((d) => `${d.drug_name} ${d.strength} x${d.number_to_be_taken}/dose`)
+      // Prefer the WHO/NTP weight-band tablets-per-dose when the patient's
+      // weight is on file; fall back to the regimen's own dose count
+      // (health-worker-entered) so the alert still works without it.
+      const tabletsPerDose = suggestTabletsPerDose(patient.weight_kg);
+      const stockRequestItems = (patient.drug_regimen || []).map((d) => ({
+        drug_name: d.drug_name,
+        strength: d.strength,
+        unit: d.unit,
+        quantity_needed: (tabletsPerDose ?? d.number_to_be_taken) * TOTAL_COURSE_DOSES,
+      }));
+      const drugList = stockRequestItems
+        .map((d) => `${[d.drug_name, d.strength].filter(Boolean).join(' ')} — ${d.quantity_needed} ${d.unit}(s) for full course`)
         .join(', ');
       const category = patient.patient_type?.is_retreatment ? 'Retreatment' : 'New';
+      const weightNote = patient.weight_kg
+        ? ` (based on ${patient.weight_kg}kg weight)`
+        : '';
 
       await createAlert({
         patient_id: patient.patient_id,
@@ -319,8 +336,9 @@ export const registerPatient = async (data, requester) => {
         barangay_id: patient.barangay_id,
         alert_type: 'Stock Request',
         severity: 'Warning',
-        message: `${category} patient ${patient.full_name} (${patient.tb_case_number}) registered at ${patient.health_center_name}, ${patient.barangay_name}. Regimen: ${patient.regimen_type || 'N/A'} — ${drugList || 'see patient record'}. Please prepare stock.`,
+        message: `${category} patient ${patient.full_name} (${patient.tb_case_number}) registered at ${patient.health_center_name}, ${patient.barangay_name}. Regimen: ${patient.regimen_type || 'N/A'} — ${drugList || 'see patient record'}${weightNote}. Please prepare stock.`,
         target_roles: ['super_admin', 'patc', 'barangay_admin'],
+        stock_request_items: stockRequestItems.length ? stockRequestItems : undefined,
       });
     } catch (err) {
       console.error('Failed to create stock request alert:', err);
@@ -373,6 +391,8 @@ export const updatePatient = async (patientId, data, requester) => {
     ...(data.birth_date && { birth_date: new Date(data.birth_date) }),
     ...(data.age && { age: data.age }),
     ...(data.sex && { sex: data.sex }),
+    ...(data.weight_kg !== undefined && { weight_kg: data.weight_kg }),
+    ...(data.height_cm !== undefined && { height_cm: data.height_cm }),
     ...(data.philhealth_number !== undefined && { philhealth_number: data.philhealth_number }),
     ...(data.phone_number && { phone_number: data.phone_number }),
     ...(data.email !== undefined && { email: data.email }),
@@ -492,6 +512,47 @@ export const updateSputumSchedule = async (patientId, data, requester) => {
 };
 
 // ================================================================
+// TRANSFER PATIENT TO ANOTHER HEALTH CENTER
+// ================================================================
+export const transferPatient = async (patientId, data, requester) => {
+  const patient = await Patient.findOne({ patient_id: patientId });
+  if (!patient) throw createError(404, 'Patient not found.');
+  // Barangay admins may only transfer patients currently under their own
+  // barangay; the destination barangay is intentionally exempt from this
+  // check since it's always different from the requester's own.
+  assertSameBarangay(requester, patient.barangay_id);
+
+  if (data.barangay_id === patient.barangay_id)
+    throw createError(400, 'Patient is already assigned to this barangay.');
+
+  const updated = await Patient.findOneAndUpdate(
+    { patient_id: patientId },
+    {
+      barangay_id: data.barangay_id,
+      barangay_name: data.barangay_name,
+      health_center_id: data.health_center_id,
+      health_center_name: data.health_center_name,
+      updated_at: new Date(),
+    },
+    { new: true },
+  );
+
+  if (patient.user_id) {
+    await User.findOneAndUpdate(
+      { user_id: patient.user_id },
+      {
+        barangay_id: data.barangay_id,
+        barangay_name: data.barangay_name,
+        health_center_id: data.health_center_id,
+        updated_at: new Date(),
+      },
+    );
+  }
+
+  return updated;
+};
+
+// ================================================================
 // DEACTIVATE / REACTIVATE
 // ================================================================
 export const setPatientActiveStatus = async (patientId, isActive, requester) => {
@@ -508,13 +569,20 @@ export const setPatientActiveStatus = async (patientId, isActive, requester) => 
 // ================================================================
 // EXPORT PDF
 // ================================================================
-export const exportPatientsPdf = async (filters = {}) => {
+export const exportPatientsPdf = async (filters = {}, requesterRole = null) => {
   const query = buildPatientQuery(filters);
 
   const patients = await Patient.find(query).sort({ created_at: -1 });
   if (!patients.length) throw createError(404, 'No patients found for the given filters.');
 
-    return await generatePatientListPdf(patients);
+  // Scoped to one barangay — every returned patient shares the same
+  // denormalized health center, so the first record's is representative.
+  const scoped = Boolean(filters.barangay_id);
+  return await generatePatientListPdf(patients, {
+    barangayName: scoped ? patients[0].barangay_name : null,
+    healthCenterName: scoped ? patients[0].health_center_name : null,
+    isPatc: requesterRole === ROLES.PATC,
+  });
 };
 
 // ================================================================

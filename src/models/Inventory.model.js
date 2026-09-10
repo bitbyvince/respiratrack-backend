@@ -43,9 +43,14 @@ const inventorySchema = new mongoose.Schema(
 
     strength: {
       type: String,
-      required: true,
       trim: true,
+      default: '',
       // e.g. "300mg", "600mg", "1500mg", "1200mg"
+      // HRZE/HR are fixed-dose combinations with no meaningful strength
+      // of their own — only the individual single drugs need one.
+      required: function () {
+        return !['HRZE', 'HR'].includes(this.drug_name);
+      },
     },
 
     unit: {
@@ -137,7 +142,9 @@ const inventorySchema = new mongoose.Schema(
 );
 
 // ── Indexes ──────────────────────────────────────────────────
-inventorySchema.index({ barangay_id: 1, drug_name: 1, strength: 1 }, { unique: true });
+// Uniqueness is per HEALTH CENTER, not barangay — a barangay can have
+// more than one facility, and each stocks its own supply of a drug.
+inventorySchema.index({ health_center_id: 1, drug_name: 1, strength: 1 }, { unique: true });
 inventorySchema.index({ barangay_id: 1 });
 inventorySchema.index({ stock_status: 1 });
 inventorySchema.index({ estimated_stockout_date: 1 });

@@ -4,6 +4,7 @@ export const getHeatmapSchema = Joi.object({
   period: Joi.string().valid("daily", "monthly", "all_time").default("monthly"),
   snapshot_date: Joi.date().iso().optional(),
   barangay_id: Joi.string().optional(),
+  health_center_id: Joi.string().optional(),
 });
 
 export const buildSnapshotSchema = Joi.object({
@@ -14,10 +15,12 @@ export const buildSnapshotSchema = Joi.object({
 export const getBarangayDetailSchema = Joi.object({
   period: Joi.string().valid("daily", "monthly", "all_time").default("monthly"),
   snapshot_date: Joi.date().iso().optional(),
+  health_center_id: Joi.string().optional(),
 });
 
 export const getHeatmapHistorySchema = Joi.object({
   barangay_id: Joi.string().optional(), // ← make optional since it's in the URL
+  health_center_id: Joi.string().optional(),
   period: Joi.string().valid("daily", "monthly", "all_time").default("monthly"),
   from: Joi.date().iso().optional(),
   to: Joi.date().iso().optional(),

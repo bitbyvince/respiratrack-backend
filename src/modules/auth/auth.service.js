@@ -4,7 +4,9 @@ import User from "../../models/User.model.js";
 import Barangay from "../../models/Barangay.model.js";
 import { createError } from "../../utils/apiResponse.js";
 import firebaseAdmin from "../../config/firebase.js";
-import { sendOtpSms } from "../../utils/semaphoreSms.js";
+import { sendOtpSms } from "../../utils/smsProvider.js";
+import { startVerification, checkVerification } from "../../utils/twilioVerify.js";
+import env from "../../config/env.js";
 
 const OTP_TTL_MS = 5 * 60 * 1000;
 
@@ -164,6 +166,18 @@ export async function requestOtp(phoneNumber) {
   });
   if (!user) throw createError(404, "No active account found with this phone number.");
 
+  // Twilio Verify generates, sends, and expires the code itself — there's
+  // no code for us to hash/store. We still record otp_expires_at so
+  // verifyOtp can tell "was one ever requested" without asking Twilio.
+  if (env.SMS_PROVIDER === "twilio_verify") {
+    await startVerification(phoneNumber);
+    await User.findOneAndUpdate(
+      { phone_number: phoneNumber },
+      { otp_hash: null, otp_expires_at: new Date(Date.now() + OTP_TTL_MS) }
+    );
+    return { message: "OTP sent." };
+  }
+
   const code = await sendOtpSms(phoneNumber);
   const hashed = await bcrypt.hash(code, 10);
 
@@ -183,12 +197,18 @@ export async function verifyOtp(phoneNumber, code) {
   });
   if (!user) throw createError(404, "User not found.");
 
-  if (!user.otp_hash || !user.otp_expires_at || user.otp_expires_at < new Date()) {
+  if (!user.otp_expires_at || user.otp_expires_at < new Date()) {
     throw createError(400, "Code expired or not requested — request a new one.");
   }
 
-  const isMatch = await bcrypt.compare(code, user.otp_hash);
-  if (!isMatch) throw createError(400, "Invalid code.");
+  if (env.SMS_PROVIDER === "twilio_verify") {
+    const { approved } = await checkVerification(phoneNumber, code);
+    if (!approved) throw createError(400, "Invalid code.");
+  } else {
+    if (!user.otp_hash) throw createError(400, "Code expired or not requested — request a new one.");
+    const isMatch = await bcrypt.compare(code, user.otp_hash);
+    if (!isMatch) throw createError(400, "Invalid code.");
+  }
 
   await User.findOneAndUpdate(
     { phone_number: phoneNumber },
@@ -212,10 +232,18 @@ export async function getMe(userId) {
     try {
       const barangay = await Barangay.findOne(
         { barangay_id: userObj.barangay_id },
-        { barangay_id: 1, name: 1, municipality: 1, health_center: 1 }
+        { barangay_id: 1, name: 1, municipality: 1, health_centers: 1 }
       ).lean();
       if (barangay) {
-        userObj.barangay_id = barangay;
+        // Staff belong to one specific facility (userObj.health_center_id) —
+        // surface just that one, not the barangay's full list.
+        const myCenter = barangay.health_centers?.find(
+          (hc) => hc.health_center_id === userObj.health_center_id
+        );
+        userObj.barangay_id = {
+          ...barangay,
+          health_center: myCenter || barangay.health_centers?.[0] || null,
+        };
       }
     } catch (_) {}
   }

@@ -38,9 +38,9 @@ export const getAvailableSlots = async (req, res) => {
 
 export const getAppointments = async (req, res) => {
   try {
-    const { page = 1, limit = 20, status, purpose, from, to, barangay_id } = req.query;
+    const { page = 1, limit = 20, status, purpose, from, to, barangay_id, sortDir } = req.query;
     const result = await service.getAppointments(
-      { status, purpose, from, to, barangay_id },
+      { status, purpose, from, to, barangay_id, sortDir },
       { page, limit },
     );
     return sendSuccess(res, 200, 'Appointments retrieved.', result);
@@ -79,8 +79,8 @@ export const getPatientAppointments = async (req, res) => {
 export const getBarangayAppointments = async (req, res) => {
   try {
     const { barangayId } = req.params;
-    const { status, purpose, date } = req.query;
-    const appointments = await service.getBarangayAppointments(barangayId, { status, purpose, date });
+    const { status, purpose, date, from, to, sortDir } = req.query;
+    const appointments = await service.getBarangayAppointments(barangayId, { status, purpose, date, from, to, sortDir });
     return sendSuccess(res, 200, 'Barangay appointments retrieved.', { appointments });
   } catch (err) {
     return sendError(res, err.statusCode || 400, err.message);

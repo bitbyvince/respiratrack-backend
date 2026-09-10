@@ -41,8 +41,15 @@ const drugRegimenItem = Joi.object({
   drug_name: Joi.string().required().messages({
     'any.required': 'Drug name is required.',
   }),
-  strength: Joi.string().required().messages({
-    'any.required': 'Drug strength is required.',
+  // HRZE/HR are fixed-dose combinations with no separate "strength" to
+  // pick — only the individual single drugs (Isoniazid, Rifampicin,
+  // Pyrazinamide, Ethambutol) need one.
+  strength: Joi.string().when('drug_name', {
+    is: Joi.valid('HRZE', 'HR'),
+    then: Joi.string().allow('', null).optional(),
+    otherwise: Joi.string().required().messages({
+      'any.required': 'Drug strength is required.',
+    }),
   }),
   unit: Joi.string()
     .valid('tablet', 'capsule', 'vial', 'sachet')
@@ -82,6 +89,7 @@ const treatmentSupporterSchema = Joi.object({
 // ── CONTACT TRACING ──────────────────────────────────────
 const contactTracingSchema = Joi.object({
   number_of_contacts: Joi.number().integer().min(0).optional(),
+  contact_names: Joi.array().items(Joi.string().trim().min(1)).optional(),
   schedule: dateField('Contact tracing schedule', false),
 });
 
@@ -105,6 +113,8 @@ export const registerPatientSchema = Joi.object({
     'any.only': 'Sex must be either Male or Female.',
     'any.required': 'Sex is required.',
   }),
+  weight_kg: Joi.number().min(0).max(500).optional().allow(null),
+  height_cm: Joi.number().min(0).max(300).optional().allow(null),
   philhealth_number: Joi.string()
     .pattern(/^\d{2}-\d{9}-\d{1}$/)
     .optional()
@@ -188,6 +198,8 @@ export const updatePatientSchema = Joi.object({
   birth_date: dateField('Birth date', false),
   age: Joi.number().integer().min(0).max(120).optional(),
   sex: Joi.string().valid('Male', 'Female').optional(),
+  weight_kg: Joi.number().min(0).max(500).optional().allow(null),
+  height_cm: Joi.number().min(0).max(300).optional().allow(null),
   philhealth_number: Joi.string().pattern(/^\d{2}-\d{9}-\d{1}$/).optional().allow(null, ''),
   phone_number: phoneField(false),
   email: Joi.string().email().optional().allow(null, ''),
@@ -215,6 +227,18 @@ export const updatePatientSchema = Joi.object({
   .messages({
     'object.min': 'At least one field must be provided for update.',
   });
+
+// ================================================================
+// TRANSFER PATIENT TO ANOTHER HEALTH CENTER
+// ================================================================
+export const transferPatientSchema = Joi.object({
+  barangay_id: Joi.string().required().messages({
+    'any.required': 'Destination barangay is required.',
+  }),
+  barangay_name: Joi.string().required(),
+  health_center_id: Joi.string().required(),
+  health_center_name: Joi.string().required(),
+});
 
 // ================================================================
 // UPDATE MY CONTACT (patient self-service)

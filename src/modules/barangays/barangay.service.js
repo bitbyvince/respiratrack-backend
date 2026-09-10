@@ -44,7 +44,16 @@ const generateBarangayId = async () => {
 
 export async function createBarangay(data) {
   const barangay_id = await generateBarangayId();
-  return Barangay.create({ ...data, barangay_id });
+
+  const health_centers = [];
+  for (const hc of data.health_centers) {
+    health_centers.push({
+      ...hc,
+      health_center_id: hc.health_center_id || (await generateHealthCenterId()),
+    });
+  }
+
+  return Barangay.create({ ...data, barangay_id, health_centers });
 }
 
 export async function getBarangays(filters, { page = 1, limit = 20 }) {
@@ -69,18 +78,24 @@ export async function getBarangays(filters, { page = 1, limit = 20 }) {
     Barangay.countDocuments(query),
   ]);
 
-  // Attach real computed stats to each barangay
-  const barangaysWithStats = await Promise.all(
-    barangays.map(async (b) => {
-      const liveStats = await computeBarangayStats(b.barangay_id);
-      const obj = b.toObject();
-      obj.stats = {
-        ...obj.stats,
-        ...liveStats,
-      };
-      return obj;
-    })
-  );
+  // Live stats cost 7 Patient.countDocuments() queries PER barangay —
+  // real work against Atlas, not something an ETag/304 can shortcut.
+  // Most callers (dropdowns, transfer targets, patient forms) only
+  // need id/name/health_centers, so this is opt-in via include_stats
+  // instead of always paying for every barangay's stats on every call.
+  const barangaysWithStats = filters.includeStats
+    ? await Promise.all(
+        barangays.map(async (b) => {
+          const liveStats = await computeBarangayStats(b.barangay_id);
+          const obj = b.toObject();
+          obj.stats = {
+            ...obj.stats,
+            ...liveStats,
+          };
+          return obj;
+        })
+      )
+    : barangays.map((b) => b.toObject());
 
   return { barangays: barangaysWithStats, total, page: parsedPage, limit: parsedLimit };
 }
@@ -101,6 +116,48 @@ export async function updateBarangay(barangayId, data) {
   const barangay = await Barangay.findOneAndUpdate(
     { barangay_id: barangayId },
     { $set: data, updated_at: new Date() },
+    { new: true }
+  );
+
+  if (!barangay) {
+    throw new Error("Barangay not found.");
+  }
+
+  return barangay;
+}
+
+// ── GENERATE SEQUENTIAL HEALTH CENTER ID ────────────────────
+// "HC-XXX" format, matching existing seed data (HC-001, HC-002, ...).
+// Scanned across ALL barangays' health_centers arrays, since IDs
+// must be unique city-wide, not just within one barangay.
+const generateHealthCenterId = async () => {
+  const barangays = await Barangay.find(
+    {},
+    { "health_centers.health_center_id": 1 }
+  ).lean();
+
+  const nums = barangays
+    .flatMap((b) => b.health_centers || [])
+    .map((hc) => parseInt(hc.health_center_id?.split("-")[1], 10))
+    .filter((n) => !isNaN(n));
+
+  const max = nums.length ? Math.max(...nums) : 0;
+  return `HC-${String(max + 1).padStart(3, "0")}`;
+};
+
+// Adds one more health center to an existing barangay, rather than
+// creating a brand-new barangay — used when a barangay already has
+// one health center and needs another (e.g. a Super Health Center).
+export async function addHealthCenter(barangayId, healthCenterData) {
+  const health_center_id =
+    healthCenterData.health_center_id || (await generateHealthCenterId());
+
+  const barangay = await Barangay.findOneAndUpdate(
+    { barangay_id: barangayId },
+    {
+      $push: { health_centers: { ...healthCenterData, health_center_id } },
+      $set: { updated_at: new Date() },
+    },
     { new: true }
   );
 

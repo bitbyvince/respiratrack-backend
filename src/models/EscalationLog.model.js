@@ -51,6 +51,15 @@ const escalationLogSchema = new mongoose.Schema(
       ref: 'Barangay',
     },
 
+    // Denormalized from the patient — a barangay can have more than
+    // one health center, and both heatmap.service.js and
+    // heatmapSnapshot.job.js query open escalations by this field.
+    health_center_id: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+
     // ── Escalation Details ──────────────────────────────────
     level: {
       type: Number,

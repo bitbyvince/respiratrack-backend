@@ -44,6 +44,31 @@ export async function getActivePatientsForDispensing(req, res) {
   }
 }
 
+export async function getMySupplyStatus(req, res) {
+  try {
+    const { patient_id } = req.user;
+    if (!patient_id) {
+      return res.status(400).json({
+        success: false,
+        message: "No patient record linked to this account.",
+      });
+    }
+
+    const supply = await service.getMySupplyStatus(patient_id);
+
+    return res.status(200).json({
+      success: true,
+      message: "Medicine supply status retrieved.",
+      data: supply,
+    });
+  } catch (err) {
+    return res.status(400).json({
+      success: false,
+      message: err.message || "Failed to retrieve medicine supply status.",
+    });
+  }
+}
+
 export async function getDispensingRecords(req, res) {
   try {
     const {

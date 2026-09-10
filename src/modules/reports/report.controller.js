@@ -84,7 +84,10 @@ export async function getBarangayReport(req, res) {
     });
 
     if (req.query.format === "pdf") {
-      const buffer = await generateBarangayPDF(data.barangay, data.patients);
+      const buffer = await generateBarangayPDF(data.barangay, data.patients, {
+        healthCenterId: req.user.health_center_id,
+        isPatc: role === "patc",
+      });
       return streamPDF(res, buffer, `barangay-report-${data.barangay.barangay_id}`);
     }
 
@@ -103,7 +106,7 @@ export async function getCityReport(req, res) {
     });
 
     if (req.query.format === "pdf") {
-      const buffer = await generateCityPDF(data);
+      const buffer = await generateCityPDF(data, { isPatc: req.user.role === "patc" });
       return streamPDF(res, buffer, `city-report-pasig-${Date.now()}`);
     }
 
@@ -140,7 +143,7 @@ export async function getInventoryReport(req, res) {
     const data = await reportService.buildInventoryReport(barangayId);
 
     if (req.query.format === "pdf") {
-      const buffer = await generateInventoryPDF(data);
+      const buffer = await generateInventoryPDF(data, { isPatc: role === "patc" });
       return streamPDF(res, buffer, `inventory-report-${barangayId ?? "all"}-${Date.now()}`);
     }
 
@@ -152,7 +155,7 @@ export async function getInventoryReport(req, res) {
 
 export async function getTreatmentOutcomes(req, res) {
   try {
-    const { role, barangay_id: userBarangay } = req.user;
+    const { role, barangay_id: userBarangay, health_center_id: userHealthCenter } = req.user;
     const barangayId = isSuperAdminLevel(role) ? req.query.barangay_id : userBarangay;
     const year = req.query.year ? Number(req.query.year) : undefined;
 
@@ -161,10 +164,11 @@ export async function getTreatmentOutcomes(req, res) {
       year,
       req.query.from,
       req.query.to,
+      userHealthCenter,
     );
 
     if (req.query.format === "pdf") {
-      const buffer = await generateOutcomePDF(data);
+      const buffer = await generateOutcomePDF(data, { isPatc: role === "patc" });
       return streamPDF(res, buffer, `outcome-report-${barangayId ?? "all"}-${year ?? "all"}`);
     }
 

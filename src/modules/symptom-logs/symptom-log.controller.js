@@ -31,6 +31,55 @@ export const getMyTodayLog = async (req, res) => {
   }
 };
 
+export const listLogs = async (req, res) => {
+  try {
+    const { role, barangay_id: userBarangay, health_center_id: userHealthCenter } = req.user;
+    const isCityWide = role === "super_admin" || role === "patc";
+    const barangayId = isCityWide ? req.query.barangay_id : userBarangay;
+    const healthCenterId = isCityWide ? req.query.health_center_id : userHealthCenter;
+
+    const result = await service.listSymptomLogs({
+      barangayId,
+      healthCenterId,
+      page: req.query.page,
+      limit: req.query.limit,
+      from: req.query.from,
+      to: req.query.to,
+      severity: req.query.severity,
+      reviewed: req.query.reviewed,
+    });
+    return success(res, "Symptom logs retrieved.", result);
+  } catch (err) {
+    return error(res, err.message, 400);
+  }
+};
+
+export const exportPdf = async (req, res) => {
+  try {
+    const { role, barangay_id: userBarangay, health_center_id: userHealthCenter } = req.user;
+    const isCityWide = role === "super_admin" || role === "patc";
+    const barangayId = isCityWide ? req.query.barangay_id : userBarangay;
+    const healthCenterId = isCityWide ? req.query.health_center_id : userHealthCenter;
+
+    const pdfBuffer = await service.exportSymptomLogsPdf(
+      {
+        barangayId,
+        healthCenterId,
+        from: req.query.from,
+        to: req.query.to,
+        severity: req.query.severity,
+        reviewed: req.query.reviewed,
+      },
+      role,
+    );
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="symptom_logs_${Date.now()}.pdf"`);
+    return res.send(pdfBuffer);
+  } catch (err) {
+    return error(res, err.message, err.statusCode || 400);
+  }
+};
+
 export const getPatientLogs = async (req, res) => {
   try {
     const { patientId } = req.params;
@@ -42,20 +91,18 @@ export const getPatientLogs = async (req, res) => {
       to,
       severity,
     });
-    return res.status(200).json(success("Symptom logs retrieved.", result));
+    return success(res, "Symptom logs retrieved.", result);
   } catch (err) {
-    return res.status(400).json(error(err.message));
+    return error(res, err.message, 400);
   }
 };
 
 export const getLatestLog = async (req, res) => {
   try {
     const log = await service.getLatestLog(req.params.patientId);
-    return res
-      .status(200)
-      .json(success("Latest symptom log retrieved.", { log }));
+    return success(res, "Latest symptom log retrieved.", { log });
   } catch (err) {
-    return res.status(400).json(error(err.message));
+    return error(res, err.message, 400);
   }
 };
 
@@ -65,21 +112,17 @@ export const getBarangayLogs = async (req, res) => {
       req.params.barangayId,
       req.query,
     );
-    return res
-      .status(200)
-      .json(success("Barangay symptom logs retrieved.", { logs }));
+    return success(res, "Barangay symptom logs retrieved.", { logs });
   } catch (err) {
-    return res.status(400).json(error(err.message));
+    return error(res, err.message, 400);
   }
 };
 
 export const reviewLog = async (req, res) => {
   try {
     const log = await service.reviewLog(req.params.logId, req.user);
-    return res
-      .status(200)
-      .json(success("Symptom log marked as reviewed.", { log }));
+    return success(res, "Symptom log marked as reviewed.", { log });
   } catch (err) {
-    return res.status(400).json(error(err.message));
+    return error(res, err.message, 400);
   }
 };

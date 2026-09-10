@@ -27,7 +27,8 @@ const polygonSchema = Joi.object({
 });
 
 const healthCenterSchema = Joi.object({
-  health_center_id: Joi.string().trim().required(),
+  // Server-generated (HC-XXX) when omitted — same pattern as barangay_id.
+  health_center_id: Joi.string().trim().optional(),
   name: Joi.string().trim().max(150).required(),
   address: Joi.string().trim().max(300).required(),
   contact_number: Joi.string()
@@ -36,6 +37,9 @@ const healthCenterSchema = Joi.object({
     .messages({
       "string.pattern.base": "contact_number must be a valid Philippine mobile number.",
     }),
+  // Optional exact facility location — the heatmap uses this pin
+  // instead of the barangay centroid when present.
+  coordinates: pointSchema.optional(),
 });
 
 export const createBarangaySchema = Joi.object({
@@ -45,7 +49,7 @@ export const createBarangaySchema = Joi.object({
   province: Joi.string().trim().max(100).required(),
   province_code: Joi.string().trim().pattern(/^\d{4}$/).optional().allow(null, ""),
   municipality_code: Joi.string().trim().pattern(/^\d{3}$/).optional().allow(null, ""),
-  health_center: healthCenterSchema.required(),
+  health_centers: Joi.array().items(healthCenterSchema).min(1).required(),
   coordinates: pointSchema.required(),
   boundary_geojson: polygonSchema.required(),
   is_active: Joi.boolean().optional(),
@@ -57,8 +61,11 @@ export const updateBarangaySchema = Joi.object({
   province: Joi.string().trim().max(100).optional(),
   province_code: Joi.string().pattern(/^\d{4}$/).optional(),
   municipality_code: Joi.string().pattern(/^\d{3}$/).optional(),
-  health_center: healthCenterSchema.optional(),
+  health_centers: Joi.array().items(healthCenterSchema).min(1).optional(),
   coordinates: pointSchema.optional(),
   boundary_geojson: polygonSchema.optional(),
   is_active: Joi.boolean().optional(),
 });
+
+// Adding one more health center to an existing barangay.
+export const addHealthCenterSchema = healthCenterSchema;

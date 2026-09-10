@@ -101,6 +101,7 @@ export const createAlert = async (data) => {
     message,
     severity,
     target_roles,
+    stock_request_items,
   } = data;
 
   if (!VALID_ALERT_TYPES.includes(alert_type)) {
@@ -128,6 +129,7 @@ export const createAlert = async (data) => {
     created_at:       new Date(),
     resolved_at:      null,
     resolved_by:      null,
+    ...(stock_request_items && { stock_request_items }),
   });
 
   return alert;

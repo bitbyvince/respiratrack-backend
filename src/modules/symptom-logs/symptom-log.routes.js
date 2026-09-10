@@ -18,6 +18,23 @@ router.post(
   controller.logSymptom,
 );
 
+// Admin web panel — every staff role can view (scoped to their own
+// barangay/health center for nurse & barangay_admin, city-wide for
+// super_admin/patc).
+router.get(
+  "/",
+  authenticate,
+  authorizeRoles("nurse", "barangay_admin", "super_admin", "patc"),
+  controller.listLogs,
+);
+
+router.get(
+  "/export/pdf",
+  authenticate,
+  authorizeRoles("nurse", "barangay_admin", "super_admin", "patc"),
+  controller.exportPdf,
+);
+
 router.get(
   "/patient/:patientId",
   authenticate,

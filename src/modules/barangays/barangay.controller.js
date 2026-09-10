@@ -27,10 +27,15 @@ export async function getBarangays(req, res) {
       province,
       risk_level,
       is_active,
+      include_stats,
     } = req.query;
 
     const activeFilter = typeof is_active !== "undefined" ? is_active === "true" : undefined;
-    const queryFilters = { barangay_id, name, municipality, province, risk_level, is_active: activeFilter };
+    const queryFilters = {
+      barangay_id, name, municipality, province, risk_level,
+      is_active: activeFilter,
+      includeStats: include_stats === "true",
+    };
 
     const result = await service.getBarangays(queryFilters, { page, limit });
     return res.status(200).json({
@@ -59,6 +64,23 @@ export async function getBarangay(req, res) {
     return res.status(404).json({
       success: false,
       message: err.message || "Barangay not found.",
+    });
+  }
+}
+
+export async function addHealthCenter(req, res) {
+  try {
+    const { barangayId } = req.params;
+    const barangay = await service.addHealthCenter(barangayId, req.body);
+    return res.status(201).json({
+      success: true,
+      message: "Health center added.",
+      barangay,
+    });
+  } catch (err) {
+    return res.status(400).json({
+      success: false,
+      message: err.message || "Failed to add health center.",
     });
   }
 }

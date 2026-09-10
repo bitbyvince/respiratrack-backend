@@ -173,15 +173,20 @@ export const setStaffActiveStatus = async (userId, isActive, requester) => {
 };
 
 export const deleteStaff = async (userId, requester) => {
-  if (!isSuperAdminLevel(requester.role))
+  if (!isSuperAdminLevel(requester.role) && requester.role !== ROLES.BARANGAY_ADMIN)
     throw createError(
       403,
-      "Only super admins can permanently delete accounts.",
+      "Only super admins and barangay admins can permanently delete accounts.",
     );
   const user = await User.findOne({ user_id: userId });
   if (!user) throw createError(404, "Staff account not found.");
   if (user.role === ROLES.SUPER_ADMIN)
     throw createError(403, "Cannot delete a super admin account.");
+  if (requester.role === ROLES.BARANGAY_ADMIN) {
+    if (user.role !== ROLES.NURSE)
+      throw createError(403, "Barangay admins can only delete nurse accounts.");
+    assertSameBarangay(requester, user.barangay_id);
+  }
   await User.deleteOne({ user_id: userId });
 };
 

@@ -107,6 +107,15 @@ export const updateSputumSchedule = async (req, res) => {
   }
 };
 
+export const transferPatient = async (req, res) => {
+  try {
+    const updated = await patientService.transferPatient(req.params.patient_id, req.body, req.user);
+    return sendSuccess(res, 200, 'Patient transferred successfully.', updated);
+  } catch (err) {
+    return sendError(res, err.statusCode || 500, err.message);
+  }
+};
+
 export const deactivatePatient = async (req, res) => {
   try {
     await patientService.setPatientActiveStatus(req.params.patient_id, false, req.user);
@@ -133,7 +142,7 @@ export const exportPatientsPdf = async (req, res) => {
         barangay_id: req.user.barangay_id,
       }),
     };
-    const pdfBuffer = await patientService.exportPatientsPdf(filters);
+    const pdfBuffer = await patientService.exportPatientsPdf(filters, req.user.role);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="patients_${Date.now()}.pdf"`);
     return res.send(pdfBuffer);

@@ -4,6 +4,7 @@ import Patient from "../../models/Patient.model.js";
 import Alert from "../../models/Alert.model.js";
 import EscalationLog from "../../models/EscalationLog.model.js";
 import Inventory from "../../models/Inventory.model.js";
+import { resolveHealthCenterCoordinates } from "../../utils/geoJitter.js";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -43,16 +44,21 @@ export async function buildSnapshots(period = "monthly", snapshotDate) {
   const date = normaliseSnapshotDate(snapshotDate);
   const barangays = await Barangay.find({});
 
-  return Promise.all(
-    barangays.map((brgy) => buildSnapshotForBarangay(brgy, period, date))
-  );
+  const results = [];
+  for (const brgy of barangays) {
+    for (const healthCenter of brgy.health_centers || []) {
+      results.push(buildSnapshotForHealthCenter(brgy, healthCenter, period, date));
+    }
+  }
+  return Promise.all(results);
 }
 
-export async function buildSnapshotForBarangay(barangay, period, date) {
+export async function buildSnapshotForHealthCenter(barangay, healthCenter, period, date) {
   const barangayId = barangay.barangay_id;
+  const healthCenterId = healthCenter.health_center_id;
 
   const patients = await Patient.find({
-    barangay_id: barangayId,
+    health_center_id: healthCenterId,
     is_active: true,
   }).select(
     "compliance.risk_level compliance.compliance_percentage escalation.level date_started"
@@ -62,35 +68,30 @@ export async function buildSnapshotForBarangay(barangay, period, date) {
   let compliantCount = 0;
   let atRiskCount = 0;
   let defaulterCount = 0;
-  let totalCompliance = 0;
 
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-  let eligibleCount = 0;
-
-for (const p of patients) {
-  const rl = p.compliance?.risk_level;
-  if (rl === "Compliant") compliantCount++;
-  else if (rl === "At Risk") atRiskCount++;
-  else if (rl === "Defaulter") defaulterCount++;
-
-  // Only include in compliance rate if started more than 7 days ago
-  const startedMoreThan7DaysAgo = p.date_started && new Date(p.date_started) <= sevenDaysAgo;
-    if (startedMoreThan7DaysAgo) {
-      totalCompliance += p.compliance?.compliance_percentage ?? 0;
-      eligibleCount++;
-    }
+  for (const p of patients) {
+    const rl = p.compliance?.risk_level;
+    if (rl === "Compliant") compliantCount++;
+    else if (rl === "At Risk") atRiskCount++;
+    else if (rl === "Defaulter") defaulterCount++;
   }
 
+  // Share of patients currently classified Compliant — NOT an average
+  // of patient.compliance.compliance_percentage, which is "% of the
+  // full 6-month course completed so far" and is naturally low for
+  // anyone mid-treatment regardless of how well they're doing. That
+  // made every facility with any mid-course patients look "high" or
+  // "critical" even with zero at-risk/defaulter patients. This matches
+  // the same compliance definition already used everywhere else in
+  // the app (city report, Barangay.stats via complianceSnapshot.job).
   const complianceRate =
-    eligibleCount > 0
-      ? parseFloat((totalCompliance / eligibleCount).toFixed(2))
-      : 100; // default to 100% if all patients just started
-      
+    totalPatients > 0
+      ? parseFloat(((compliantCount / totalPatients) * 100).toFixed(2))
+      : 100;
+
 
   const openEscalations = await EscalationLog.find({
-    barangay_id: barangayId,
+    health_center_id: healthCenterId,
     resolved: false,
   }).select("level");
 
@@ -101,23 +102,29 @@ for (const p of patients) {
     else if (e.level === 3) escalationCounts.level_3++;
   }
 
-  const inventory = await Inventory.find({ barangay_id: barangayId }).select("stock_status");
+  const inventory = await Inventory.find({ health_center_id: healthCenterId }).select("stock_status");
   const stockStatus = resolveStockStatus(inventory);
 
   const riskLevel = deriveRiskLevel(complianceRate, totalPatients);
   const heatIntensity = calcHeatIntensity(complianceRate);
 
-  const snapshotId = `HMAP-${barangayId}-${period}-${date.toISOString().split('T')[0]}`;
+  const snapshotId = `HMAP-${healthCenterId}-${period}-${date.toISOString().split('T')[0]}`;
 
+  const coordinates = {
+    type: "Point",
+    coordinates: resolveHealthCenterCoordinates(barangay, healthCenter),
+  };
 
-    return HeatmapSnapshot.findOneAndUpdate(
-      { barangay_id: barangayId, period, snapshot_date: date },
-      {
-        $set: {
-      snapshot_id: snapshotId,
-      barangay_name: barangay.name,
-        health_center_name: barangay.health_center?.name ?? "",
-        coordinates: barangay.coordinates,
+  return HeatmapSnapshot.findOneAndUpdate(
+    { health_center_id: healthCenterId, period, snapshot_date: date },
+    {
+      $set: {
+        snapshot_id: snapshotId,
+        barangay_id: barangayId,
+        barangay_name: barangay.name,
+        health_center_id: healthCenterId,
+        health_center_name: healthCenter.name,
+        coordinates,
         boundary_geojson: barangay.boundary_geojson,
         active_cases: totalPatients,
         compliance_rate: complianceRate,
@@ -136,10 +143,11 @@ for (const p of patients) {
 
 // ─── Query Functions ──────────────────────────────────────────────────────────
 
-export async function getHeatmap(period = "monthly", snapshotDate, barangayId) {
+export async function getHeatmap(period = "monthly", snapshotDate, barangayId, healthCenterId) {
   const filter = { period };
 
-  if (barangayId) filter.barangay_id = barangayId;
+  if (healthCenterId) filter.health_center_id = healthCenterId;
+  else if (barangayId) filter.barangay_id = barangayId;
 
   if (snapshotDate) {
     filter.snapshot_date = normaliseSnapshotDate(snapshotDate);
@@ -155,8 +163,10 @@ export async function getHeatmap(period = "monthly", snapshotDate, barangayId) {
   return HeatmapSnapshot.find(filter).sort({ heat_intensity: -1 });
 }
 
-export async function getBarangayDetail(barangayId, period = "monthly", snapshotDate) {
-  const filter = { barangay_id: barangayId, period };
+export async function getBarangayDetail(barangayId, period = "monthly", snapshotDate, healthCenterId) {
+  const filter = healthCenterId
+    ? { health_center_id: healthCenterId, period }
+    : { barangay_id: barangayId, period };
 
   if (snapshotDate) {
     filter.snapshot_date = normaliseSnapshotDate(snapshotDate);
@@ -164,15 +174,16 @@ export async function getBarangayDetail(barangayId, period = "monthly", snapshot
 
   const snapshot = await HeatmapSnapshot.findOne(filter).sort({ snapshot_date: -1 });
 
-  if (!snapshot) throw new Error(`No heatmap snapshot found for ${barangayId}`);
+  if (!snapshot) throw new Error(`No heatmap snapshot found for ${healthCenterId || barangayId}`);
 
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  const patients = await Patient.find({
-    barangay_id: barangayId,
-    is_active: true,
-  }).select(
+  const patientFilter = healthCenterId
+    ? { health_center_id: healthCenterId, is_active: true }
+    : { barangay_id: barangayId, is_active: true };
+
+  const patients = await Patient.find(patientFilter).select(
     "compliance.risk_level compliance.compliance_percentage escalation.level date_started"
   );
 
@@ -186,8 +197,10 @@ export async function getBarangayDetail(barangayId, period = "monthly", snapshot
   return { snapshot, patients, active_alerts: activeAlerts };
 }
 
-export async function getHeatmapHistory(barangayId, period = "monthly", from, to, limit = 30) {
-  const filter = { barangay_id: barangayId, period };
+export async function getHeatmapHistory(barangayId, period = "monthly", from, to, limit = 30, healthCenterId) {
+  const filter = healthCenterId
+    ? { health_center_id: healthCenterId, period }
+    : { barangay_id: barangayId, period };
 
   if (from || to) {
     filter.snapshot_date = {};

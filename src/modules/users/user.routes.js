@@ -57,7 +57,7 @@ router.patch(
 );
 router.delete(
   "/staff/:user_id",
-  authorizeRoles(ROLES.SUPER_ADMIN, ROLES.PATC),
+  authorizeRoles(ROLES.SUPER_ADMIN, ROLES.PATC, ROLES.BARANGAY_ADMIN),
   userController.deleteStaff,
 );
 

@@ -11,7 +11,7 @@ const VALID_STATUSES = ['Pending', 'Confirmed', 'Completed', 'Cancelled'];
 // patients instead and merge their display fields onto each appointment.
 // Pending appointments need action, so they should surface first regardless
 // of date; Array.prototype.sort is stable, so this preserves the date/time
-// ascending order already applied within each status group.
+// descending (latest-first) order already applied within each status group.
 const sortByStatusPriority = (appointments) =>
   [...appointments].sort(
     (a, b) => VALID_STATUSES.indexOf(a.status) - VALID_STATUSES.indexOf(b.status),
@@ -166,7 +166,7 @@ export const getAvailableSlots = async (patientId, dateStr) => {
 };
 
 export const getAppointments = async (filters, { page, limit }) => {
-  const { status, purpose, from, to, barangay_id } = filters;
+  const { status, purpose, from, to, barangay_id, sortDir } = filters;
   const query = {};
 
   if (status) {
@@ -186,10 +186,11 @@ export const getAppointments = async (filters, { page, limit }) => {
   const skip = (pageNum - 1) * limitNum;
 
   // Pending-first ordering can't be expressed as a single Mongo sort key,
-  // so fetch the full matching set (date/time ascending) and re-rank by
-  // status before paginating — appointment volumes here are small enough
-  // that this stays cheap.
-  const allMatching = await Appointment.find(query).sort({ scheduled_date: 1, scheduled_time: 1 });
+  // so fetch the full matching set (date/time, direction per sortDir) and
+  // re-rank by status before paginating — appointment volumes here are
+  // small enough that this stays cheap.
+  const dir = sortDir === 'asc' ? 1 : -1;
+  const allMatching = await Appointment.find(query).sort({ scheduled_date: dir, scheduled_time: dir });
   const sorted = sortByStatusPriority(allMatching);
   const total = sorted.length;
   const rawAppointments = sorted.slice(skip, skip + limitNum);
@@ -239,7 +240,7 @@ const attachHealthCenterName = async (appointments, patientId) => {
   });
 };
 
-export const getBarangayAppointments = async (barangayId, { status, purpose, date }) => {
+export const getBarangayAppointments = async (barangayId, { status, purpose, date, from, to, sortDir }) => {
   const query = { barangay_id: barangayId };
 
   if (status) {
@@ -251,8 +252,13 @@ export const getBarangayAppointments = async (barangayId, { status, purpose, dat
     const start = new Date(date);
     const end = new Date(start.getTime() + 86400000);
     query.scheduled_date = { $gte: start, $lt: end };
+  } else if (from || to) {
+    query.scheduled_date = {};
+    if (from) query.scheduled_date.$gte = new Date(from);
+    if (to) query.scheduled_date.$lte = new Date(to);
   }
-  const appointments = await Appointment.find(query).sort({ scheduled_date: 1, scheduled_time: 1 });
+  const dir = sortDir === 'asc' ? 1 : -1;
+  const appointments = await Appointment.find(query).sort({ scheduled_date: dir, scheduled_time: dir });
   return await attachPatientInfo(sortByStatusPriority(appointments));
 };
 

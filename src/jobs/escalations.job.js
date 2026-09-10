@@ -59,7 +59,14 @@ const runEscalationJob = async () => {
             "escalation.escalated_at": now,
             "escalation.escalated_by": "system",
             "escalation.notes": `${consecutiveMissed} consecutive missed doses — ${meta.label}`,
-            ...(newLevel === 3 && { "compliance.risk_level": "Lost to Follow-Up" }),
+            // "Lost to Follow-Up" is a treatment OUTCOME, not one of the
+            // three compliance.risk_level values (Compliant/At Risk/
+            // Defaulter) — writing it there was an invalid-enum value
+            // that Mongoose's findOneAndUpdate silently allowed through
+            // (validators don't run on update by default), and it would
+            // then fall through every risk_level branch in aggregation
+            // code (never counted as Compliant, At Risk, or Defaulter).
+            ...(newLevel === 3 && { "treatment_outcome.status": "Lost to Follow-Up" }),
             updated_at: now,
           },
         },
@@ -86,28 +93,32 @@ const runEscalationJob = async () => {
       const logCount = await EscalationLog.countDocuments({});
       const logId = `ESC-${String(logCount + 1).padStart(4, "0")}`;
 
+      // Field names below match EscalationLog.model.js exactly — this
+      // used to write consecutive_missed/reason/notified_parties, none
+      // of which exist on the schema (consecutive_missed_at_trigger is
+      // required, so every single escalation attempt was throwing a
+      // validation error and never actually getting logged).
       await EscalationLog.create({
         escalation_id: logId,
         patient_id: patient.patient_id,
         tb_case_number: patient.tb_case_number,
         barangay_id: patient.barangay_id,
+        health_center_id: patient.health_center_id,
         level: newLevel,
-        triggered_at: now,
+        consecutive_missed_at_trigger: consecutiveMissed,
         triggered_by: "system",
-        consecutive_missed: consecutiveMissed,
-        reason: `${consecutiveMissed} consecutive missed doses — auto-escalated to Level ${newLevel}`,
-        notified_parties: meta.target_roles.map((role) => ({
-          user_id: null,
-          role,
-          notified_at: now,
-        })),
+        triggered_at: now,
+        // notified_users needs a real user_id per entry (required by
+        // schema) — we only know target ROLES here, not which specific
+        // nurse/admin actually received it, so leave it empty rather
+        // than writing a fake required id.
+        notified_users: [],
         acknowledged_by: null,
         acknowledged_at: null,
         acknowledgement_notes: "",
         resolved: false,
         resolved_at: null,
         resolution_notes: "",
-        created_at: now,
       });
 
       if (patient.user_id) {

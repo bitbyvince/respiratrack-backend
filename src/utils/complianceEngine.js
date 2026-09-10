@@ -81,8 +81,11 @@ export async function computePatientCompliance(patient) {
     (s) => s === "Partial" || s === "Missed" || s === undefined,
   );
 
+  // Defaulter = 56 consecutive days with no dose logged (2 full 28-day
+  // treatment months missed in a row) — matches the TB DOTS program's
+  // own definition rather than an arbitrary shorter cutoff.
   const riskLevel =
-    consecutiveMissedDoses >= 14 ? "Defaulter" : consecutiveMissedDoses >= 2 ? "At Risk" : "Compliant";
+    consecutiveMissedDoses >= 56 ? "Defaulter" : consecutiveMissedDoses >= 2 ? "At Risk" : "Compliant";
 
   const daysIntoTreatment = Math.max(Math.floor((todayOnly - startOnly) / DAY_MS) + 1, 1);
 
