@@ -49,6 +49,13 @@ const AppointmentSchema = new Schema(
       trim: true,
     },
 
+    health_center_name: {
+      type: String,
+      default: "",
+      trim: true,
+      // Denormalized from Patient at booking time for fast display
+    },
+
     // ── Appointment details ────────────────────────────────
     // Purpose of the visit
     purpose: {

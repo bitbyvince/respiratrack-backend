@@ -220,7 +220,23 @@ export const getPatientAppointments = async (patientId, { status, purpose, upcom
     query.scheduled_date = upcoming === 'true' ? { $gte: startOfToday } : { $lt: startOfToday };
   }
 
-  return await Appointment.find(query).sort({ scheduled_date: -1 });
+  const appointments = await Appointment.find(query).sort({ scheduled_date: -1 });
+  return attachHealthCenterName(appointments, patientId);
+};
+
+// Older appointments were booked before health_center_name was a stored
+// field, so they come back with it blank — fall back to the patient's
+// current registered health center rather than leaving it empty.
+const attachHealthCenterName = async (appointments, patientId) => {
+  const missingName = appointments.some((a) => !a.health_center_name);
+  if (!missingName) return appointments;
+
+  const patient = await Patient.findOne({ patient_id: patientId }).select('health_center_name').lean();
+  return appointments.map((a) => {
+    if (a.health_center_name) return a;
+    const appointment = a.toJSON ? a.toJSON() : a;
+    return { ...appointment, health_center_name: patient?.health_center_name ?? '' };
+  });
 };
 
 export const getBarangayAppointments = async (barangayId, { status, purpose, date }) => {
