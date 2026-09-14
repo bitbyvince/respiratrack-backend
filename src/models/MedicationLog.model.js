@@ -18,10 +18,12 @@ const medicineEntrySchema = new mongoose.Schema(
     },
     strength: {
       type: String,
-      required: true,
       trim: true,
+      default: '',
       // e.g. "300mg", "600mg", "1500mg", "1200mg"
-      
+      required: function () {
+        return !['HRZE', 'HR'].includes(this.drug_name);
+      },
     },
     unit: {
       type: String,

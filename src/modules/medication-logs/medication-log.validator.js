@@ -2,7 +2,13 @@ import Joi from "joi";
 
 const medicineEntrySchema = Joi.object({
   drug_name: Joi.string().required(),
-  strength: Joi.string().required(),
+  strength: Joi.string().when("drug_name", {
+    is: Joi.valid("HRZE", "HR"),
+    then: Joi.string().allow("", null).optional(),
+    otherwise: Joi.string().required().messages({
+      "any.required": "Drug strength is required.",
+    }),
+  }),
   unit: Joi.string().required(),
   number_to_be_taken: Joi.number().integer().min(1).required(),
   status: Joi.string().valid("Taken", "Missed", "Partial").required(),

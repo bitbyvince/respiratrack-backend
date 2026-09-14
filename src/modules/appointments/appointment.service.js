@@ -215,10 +215,10 @@ export const getPatientAppointments = async (patientId, { status, purpose, upcom
 
   if (purpose) query.purpose = purpose;
 
-  if (upcoming === 'true' || upcoming === 'false') {
+  if (upcoming === 'true') {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
-    query.scheduled_date = upcoming === 'true' ? { $gte: startOfToday } : { $lt: startOfToday };
+    query.scheduled_date = { $gte: startOfToday };
   }
 
   const appointments = await Appointment.find(query).sort({ scheduled_date: -1 });
