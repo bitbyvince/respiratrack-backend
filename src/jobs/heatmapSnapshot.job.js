@@ -77,43 +77,49 @@ const runHeatmapSnapshot = async () => {
           health_center_id: healthCenter.health_center_id,
         });
         const stockStatus = getWorstStockStatus(inventoryDocs);
-        const snapshotId = `HMAP-${healthCenter.health_center_id}-${today.toISOString().slice(0, 10)}`;
 
         const coordinates = {
           type: "Point",
           coordinates: resolveHealthCenterCoordinates(barangay, healthCenter),
         };
 
-        await HeatmapSnapshot.findOneAndUpdate(
-          {
-            health_center_id: healthCenter.health_center_id,
-            period: "daily",
-            snapshot_date: today,
-          },
-          {
-            $set: {
-              snapshot_id: snapshotId,
-              snapshot_date: today,
-              period: "daily",
-              barangay_id: barangay.barangay_id,
-              barangay_name: barangay.name,
+        // daily/monthly/all_time compute the same point-in-time figures —
+        // written under all three period tags so every tab in the web app
+        // stays fresh off the same nightly run instead of only "daily".
+        for (const period of ["daily", "monthly", "all_time"]) {
+          const snapshotId = `HMAP-${healthCenter.health_center_id}-${period}-${today.toISOString().slice(0, 10)}`;
+
+          await HeatmapSnapshot.findOneAndUpdate(
+            {
               health_center_id: healthCenter.health_center_id,
-              health_center_name: healthCenter.name,
-              coordinates,
-              boundary_geojson: barangay.boundary_geojson,
-              active_cases: activeCases,
-              compliance_rate: complianceRate,
-              at_risk_count: atRiskCount,
-              defaulter_count: defaulterCount,
-              escalation_counts: escalationCounts,
-              stock_status: stockStatus,
-              heat_intensity: heatIntensity,
-              risk_level: riskLevel,
-              created_at: new Date(),
+              period,
+              snapshot_date: today,
             },
-          },
-          { upsert: true, new: true },
-        );
+            {
+              $set: {
+                snapshot_id: snapshotId,
+                snapshot_date: today,
+                period,
+                barangay_id: barangay.barangay_id,
+                barangay_name: barangay.name,
+                health_center_id: healthCenter.health_center_id,
+                health_center_name: healthCenter.name,
+                coordinates,
+                boundary_geojson: barangay.boundary_geojson,
+                active_cases: activeCases,
+                compliance_rate: complianceRate,
+                at_risk_count: atRiskCount,
+                defaulter_count: defaulterCount,
+                escalation_counts: escalationCounts,
+                stock_status: stockStatus,
+                heat_intensity: heatIntensity,
+                risk_level: riskLevel,
+                created_at: new Date(),
+              },
+            },
+            { upsert: true, new: true },
+          );
+        }
 
         logger.info(
           `[heatmapSnapshot.job] Snapshot saved for ${healthCenter.name} (${barangay.name}) — ` +
