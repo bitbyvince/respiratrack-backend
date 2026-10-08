@@ -167,14 +167,24 @@ export async function createInventoryItem({
   expiry_date,
   createdByUserId,
 }) {
-  const existing = await Inventory.findOne({ health_center_id, drug_name, strength });
+  const identity = { health_center_id, drug_name };
+  // HRZE/HR are fixed-dose combinations. Older records may contain a
+  // non-empty strength, so identify them by facility and drug only.
+  if (!['HRZE', 'HR'].includes(drug_name)) identity.strength = strength ?? '';
+
+  const existing = await Inventory.findOne(identity);
   if (existing) {
-    const error = new Error(
-      "An inventory record for this drug and strength already exists for this health center — use restock instead."
-    );
-    error.statusCode = 409;
-    error.data = existing.toObject();
-    throw error;
+    existing.total_allocated += initial_quantity;
+    existing.remaining_stock += initial_quantity;
+    existing.unit = unit || existing.unit;
+    const incomingExpiry = new Date(expiry_date);
+    if (!existing.expiry_date || incomingExpiry < existing.expiry_date) {
+      existing.expiry_date = incomingExpiry;
+    }
+    existing.last_updated_at = new Date();
+    await existing.save();
+    await syncStockAlert(existing, createdByUserId);
+    return existing;
   }
 
   const inventory_id = await generateInventoryId();
