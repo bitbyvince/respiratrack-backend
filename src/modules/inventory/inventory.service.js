@@ -169,9 +169,12 @@ export async function createInventoryItem({
 }) {
   const existing = await Inventory.findOne({ health_center_id, drug_name, strength });
   if (existing) {
-    throw new Error(
+    const error = new Error(
       "An inventory record for this drug and strength already exists for this health center — use restock instead."
     );
+    error.statusCode = 409;
+    error.data = existing.toObject();
+    throw error;
   }
 
   const inventory_id = await generateInventoryId();

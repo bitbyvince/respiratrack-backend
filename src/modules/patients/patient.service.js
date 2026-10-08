@@ -334,6 +334,7 @@ export const registerPatient = async (data, requester) => {
         patient_id: patient.patient_id,
         tb_case_number: patient.tb_case_number,
         barangay_id: patient.barangay_id,
+        health_center_id: patient.health_center_id,
         alert_type: 'Stock Request',
         severity: 'Warning',
         message: `${category} patient ${patient.full_name} (${patient.tb_case_number}) registered at ${patient.health_center_name}, ${patient.barangay_name}. Regimen: ${patient.regimen_type || 'N/A'} — ${drugList || 'see patient record'}${weightNote}. Please prepare stock.`,

@@ -87,6 +87,9 @@ export async function createInventoryItem(req, res) {
     });
     return sendSuccess(res, 201, "Inventory item created", item);
   } catch (err) {
+    if (err.statusCode === 409 && err.data) {
+      return res.status(409).json({ success: false, message: err.message, data: err.data });
+    }
     return sendError(res, err.statusCode || 500, err.message);
   }
 }
